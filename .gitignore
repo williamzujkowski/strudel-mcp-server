@@ -1,49 +1,60 @@
-# Generated projects (for testing)
-test-*/
-temp-*/
-*-example/
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Pattern storage
+patterns/*.json
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# IDE files
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
 
-# Logs
-*.log
-logs/
-npm-debug.log*
-
-# Dependencies
-node_modules/
-vendor/
-
-# Build outputs
-dist/
-build/
-
-# Cache
-.cache/
-.claude/cache/
+# Testing
+coverage/
+.nyc_output/
+test_*.js
+test_*.json
 
 # Temporary files
 *.tmp
-*.bak
-*.orig
+temp/
+tmp/
 
-# Secrets
-*.key
-*.pem
-*.crt
-secrets/
-credentials/
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
 
-# Standards repository (if cloned locally)
-.standards/
+# Claude/AI Integration (keep for development)
+# .claude-flow/  # Keep for development
+# .hive-mind/    # Keep for development
+# .swarm/        # Keep for development
+
+# Generated files
+claude_desktop_config_example.json
+repomix-output.xml
+project_plan.md
+
+# Local Claude config (user-specific)
+.claude.json

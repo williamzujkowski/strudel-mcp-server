@@ -1,0 +1,33 @@
+{
+  "name": "strudel-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Strudel.cc music generation",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williamzujkowski/strudel-mcp-server.git"
+  },
+  "keywords": ["mcp", "strudel", "music", "ai", "claude"],
+  "author": "William Zujkowski",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/williamzujkowski/strudel-mcp-server/issues"
+  },
+  "homepage": "https://github.com/williamzujkowski/strudel-mcp-server#readme"
+}
