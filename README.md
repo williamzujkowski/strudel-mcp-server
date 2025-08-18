@@ -2,6 +2,7 @@
 
 > MCP server for AI-powered music generation with Strudel.cc
 
+[![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)]()
