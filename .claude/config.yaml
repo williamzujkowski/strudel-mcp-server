@@ -1,0 +1,54 @@
+version: "1.0"
+model: claude-3-opus-20240229
+temperature: 0.7
+max_tokens: 4096
+
+# Project configuration (will be replaced by setup script)
+project:
+  name: "{PROJECT_NAME}"
+  type: "{PROJECT_TYPE}"
+  language: "{PRIMARY_LANGUAGE}"
+  framework: "{FRAMEWORK}"
+
+# Context files
+context:
+  - CLAUDE.md
+  - .claude/context.md
+  - README.md
+  - src/**/*
+  
+# Standards repository
+standards:
+  repository: https://github.com/williamzujkowski/standards
+  autoload:
+    - UNIFIED_STANDARDS.md
+    - CODING_STANDARDS.md
+    - TESTING_STANDARDS.md
+    - MODERN_SECURITY_STANDARDS.md
+    - CLOUD_NATIVE_STANDARDS.md
+
+# Workflows
+workflows:
+  code_review:
+    trigger: [pre-commit, pull_request]
+    standards: [CS, TS, SEC]
+    output: markdown
+    
+  generate_tests:
+    coverage_target: 80
+    framework: "{TEST_FRAMEWORK}"
+    types: [unit, integration, e2e]
+    
+  security_audit:
+    nist_controls: true
+    vulnerability_scan: true
+    schedule: weekly
+    severity_threshold: medium
+
+# Features
+features:
+  auto_complete: true
+  real_time_validation: true
+  nist_suggestions: true
+  performance_monitoring: true
+  self_healing: false

@@ -1,0 +1,49 @@
+# Generated projects (for testing)
+test-*/
+temp-*/
+*-example/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+
+# Cache
+.cache/
+.claude/cache/
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Secrets
+*.key
+*.pem
+*.crt
+secrets/
+credentials/
+
+# Standards repository (if cloned locally)
+.standards/
