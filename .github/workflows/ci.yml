@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build TypeScript
+        run: npm run build
+      
+      - name: Test MCP server initialization
+        run: |
+          # Test that the server can start and respond to basic requests
+          timeout 5s node dist/index.js < /dev/null || true
+          echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | timeout 5s node dist/index.js > test_output.json || true
+          
+          # Check if we got a valid response
+          if [ -f test_output.json ]; then
+            cat test_output.json | grep -q '"jsonrpc":"2.0"' && echo "✓ Server responds to JSON-RPC" || exit 1
+            cat test_output.json | grep -q '"tools"' && echo "✓ Tools list returned" || exit 1
+          else
+            echo "✗ Server did not produce output"
+            exit 1
+          fi
+      
+      - name: Check TypeScript types
+        run: npx tsc --noEmit
+      
+      - name: Verify required files exist
+        run: |
+          test -f dist/index.js || exit 1
+          test -f dist/StrudelController.js || exit 1
+          test -f dist/AudioAnalyzer.js || exit 1
+          test -f dist/PatternStore.js || exit 1
+          echo "✓ All required files built successfully"
