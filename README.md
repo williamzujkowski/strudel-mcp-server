@@ -321,4 +321,4 @@ MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-**v2.1.0** - Fully tested with real Strudel.cc interaction | **100% working**
+**v2.2.0** - Fully tested with real Strudel.cc interaction | **100% working**
