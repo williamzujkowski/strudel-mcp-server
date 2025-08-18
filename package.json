@@ -1,6 +1,6 @@
 {
   "name": "@williamzujkowski/strudel-mcp-server",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Advanced MCP server for AI-powered music generation with Strudel.cc",
   "type": "module",
   "main": "dist/index.js",
@@ -19,7 +19,8 @@
     "start": "node dist/index.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "test:integration": "jest --testPathPattern=integration",
+    "test:integration": "node tests/strudel-integration.js",
+    "test:browser": "node tests/browser-test.js",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "docker:build": "docker build -t strudel-mcp .",
