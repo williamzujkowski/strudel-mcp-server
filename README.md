@@ -2,6 +2,10 @@
 
 > 🎵 Production-ready MCP server for AI-powered music generation with Strudel.cc
 
+<a href="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server/badge" alt="Strudel Server MCP server" />
+</a>
+
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
 [![Tools](https://img.shields.io/badge/tools-40+-green.svg)]()
