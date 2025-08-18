@@ -1,0 +1,19 @@
+// Minimal Techno at 130 BPM
+setcpm(130)
+
+stack(
+  // Kick drum - four on the floor
+  s("bd*4").gain(0.9),
+  
+  // Clap on 2 and 4
+  s("~ cp ~ cp").room(0.2),
+  
+  // Hi-hats with movement
+  s("hh*16").gain(0.4).pan(sine.range(-0.5, 0.5)),
+  
+  // Minimal bassline
+  note("c2 c2 eb2 c2").s("sawtooth").cutoff(800).gain(0.6),
+  
+  // Occasional open hat
+  s("~ ~ ~ oh").gain(0.3).every(4, x => x.fast(2))
+).swing(0.05)

@@ -1,7 +1,7 @@
 {
   "name": "@williamzujkowski/strudel-mcp-server",
-  "version": "1.0.0",
-  "description": "MCP server for Strudel.cc music generation",
+  "version": "2.0.0",
+  "description": "Advanced MCP server for AI-powered music generation with Strudel.cc",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -17,9 +17,17 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepublishOnly": "npm run build",
-    "prepare": "npm run build"
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:integration": "jest --testPathPattern=integration",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "docker:build": "docker build -t strudel-mcp .",
+    "docker:run": "docker-compose up",
+    "prepublishOnly": "npm run build && npm test",
+    "prepare": "npm run build",
+    "validate": "echo '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":1}' | node dist/index.js",
+    "clean": "rm -rf dist coverage"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
@@ -27,6 +35,13 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.0",
+    "ts-jest": "^29.1.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },
@@ -34,11 +49,27 @@
     "type": "git",
     "url": "git+https://github.com/williamzujkowski/strudel-mcp-server.git"
   },
-  "keywords": ["mcp", "strudel", "music", "ai", "claude"],
-  "author": "William Zujkowski",
+  "keywords": [
+    "mcp",
+    "model-context-protocol", 
+    "strudel",
+    "tidalcycles",
+    "music",
+    "ai",
+    "claude",
+    "live-coding",
+    "algorithmic-composition",
+    "web-audio",
+    "music-generation"
+  ],
+  "author": "William Zujkowski <william.zujkowski@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/williamzujkowski/strudel-mcp-server/issues"
   },
-  "homepage": "https://github.com/williamzujkowski/strudel-mcp-server#readme"
+  "homepage": "https://github.com/williamzujkowski/strudel-mcp-server#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
 }

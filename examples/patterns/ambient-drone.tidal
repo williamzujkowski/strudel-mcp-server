@@ -1,0 +1,33 @@
+// Ambient Drone Pattern
+setcpm(60)
+
+stack(
+  // Drone layer
+  note("c2 c3 g3 c4")
+    .s("sawtooth")
+    .attack(4)
+    .decay(2)
+    .sustain(0.7)
+    .release(8)
+    .cutoff(sine.slow(16).range(200, 1500))
+    .room(0.9)
+    .delay(0.75)
+    .gain(0.4),
+  
+  // Texture layer
+  note("c5 e5 g5 c6")
+    .struct("~ 1 ~ ~ 1 ~ ~ ~")
+    .s("triangle")
+    .room(0.95)
+    .delay(0.5)
+    .delaytime(0.375)
+    .delayfeedback(0.7)
+    .pan(perlin.range(-0.8, 0.8))
+    .gain(0.3),
+  
+  // Subtle percussion
+  s("~ ~ ~ hh:8")
+    .gain(0.1)
+    .room(0.8)
+    .hpf(8000)
+).gain(0.7)

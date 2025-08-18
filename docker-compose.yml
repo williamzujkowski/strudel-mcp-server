@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  strudel-mcp:
+    build: .
+    container_name: strudel-mcp-server
+    environment:
+      - NODE_ENV=production
+      - DEBUG=false
+    volumes:
+      - ./patterns:/app/patterns
+      - ./config.json:/app/config.json:ro
+    stdin_open: true
+    tty: true
+    
+  strudel-mcp-dev:
+    build: 
+      context: .
+      target: builder
+    container_name: strudel-mcp-dev
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+    volumes:
+      - ./src:/app/src
+      - ./patterns:/app/patterns
+      - ./config.json:/app/config.json:ro
+    command: npm run dev
+    stdin_open: true
+    tty: true

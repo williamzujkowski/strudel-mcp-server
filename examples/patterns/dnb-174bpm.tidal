@@ -1,0 +1,29 @@
+// Drum & Bass at 174 BPM
+setcpm(174)
+
+stack(
+  // Breakbeat
+  s("bd ~ ~ [bd bd] ~ ~ bd ~, ~ ~ sn:3 ~ ~ sn:3 ~ ~")
+    .fast(2),
+  
+  // Hi-hats
+  s("hh*16")
+    .gain(0.5)
+    .pan(sine.range(-0.3, 0.3)),
+  
+  // Ride
+  s("~ ~ ~ ~ rd ~ ~ ~"),
+  
+  // Sub bass
+  note("c1 ~ ~ c2 ~ c1 ~ ~")
+    .s("sine:2")
+    .gain(0.8)
+    .lpf(200),
+  
+  // Reese bass
+  note("c2 c2 ~ eb2 ~ ~ g1 ~")
+    .s("sawtooth")
+    .detune(0.1)
+    .cutoff(sine.range(400, 1200).fast(2))
+    .gain(0.6)
+).room(0.1).gain(0.9)
