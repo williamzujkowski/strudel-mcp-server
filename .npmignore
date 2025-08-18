@@ -1,0 +1,41 @@
+# Source files (only distribute compiled)
+src/
+*.ts
+tsconfig.json
+
+# Development files
+.claude-flow/
+.hive-mind/
+.github/
+.git/
+
+# Config files
+config.json
+.gitignore
+.npmignore
+DEVELOPMENT.md
+CLAUDE.md
+
+# Test files
+test_*.js
+test_*.json
+patterns/
+
+# Build artifacts
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local env
+.env
+.env.*
