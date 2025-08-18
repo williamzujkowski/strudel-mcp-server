@@ -47,9 +47,9 @@ playwright-report/
 playwright/.cache/
 
 # Claude/AI Integration (keep for development)
-# .claude-flow/  # Keep for development
-# .hive-mind/    # Keep for development
-# .swarm/        # Keep for development
+.claude-flow/  # Keep for development
+.hive-mind/    # Keep for development
+.swarm/        # Keep for development
 
 # Generated files
 claude_desktop_config_example.json
