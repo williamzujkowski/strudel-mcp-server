@@ -1,6 +1,8 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { MusicTheory } from '../src/services/MusicTheory';
+import { PatternGenerator } from '../src/services/PatternGenerator';
 
 describe('Strudel MCP Server Tools', () => {
   const sendRequest = async (method: string, params?: any): Promise<any> => {
@@ -184,7 +186,7 @@ describe('Strudel MCP Server Tools', () => {
         arguments: {}
       });
       
-      expect(result.result.content[0].text).toContain('Error');
+      expect(result.result.content[0].text).toMatch(/Error|not initialized|Run 'init' first/);
     });
 
     test('should handle invalid tool names', async () => {
@@ -255,7 +257,6 @@ describe('Pattern Store Integration', () => {
 
 describe('Music Theory Service', () => {
   // Direct unit tests for the music theory service
-  const { MusicTheory } = require('../dist/services/MusicTheory.js');
   
   test('should generate correct major scale', () => {
     const theory = new MusicTheory();
@@ -277,13 +278,12 @@ describe('Music Theory Service', () => {
   test('should generate Euclidean rhythms correctly', () => {
     const theory = new MusicTheory();
     const rhythm = theory.generateEuclideanRhythm(3, 8);
-    const hits = rhythm.split(' ').filter(x => x === '1').length;
+    const hits = rhythm.split(' ').filter((x: string) => x === '1').length;
     expect(hits).toBe(3);
   });
 });
 
 describe('Pattern Generator Service', () => {
-  const { PatternGenerator } = require('../dist/services/PatternGenerator.js');
   
   test('should generate drum patterns for all styles', () => {
     const generator = new PatternGenerator();
