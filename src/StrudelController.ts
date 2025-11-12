@@ -44,7 +44,11 @@ export class StrudelController {
 
     await this.page.click('.cm-content');
     await this.page.keyboard.press('ControlOrMeta+A');
-    await this.page.keyboard.type(pattern);
+
+    // Use insertText with the full pattern including newlines
+    // insertText doesn't trigger individual keypress events, avoiding auto-pairing
+    // and preserving all whitespace including newlines
+    await this.page.keyboard.insertText(pattern);
 
     return `Pattern written (${pattern.length} chars)`;
   }
