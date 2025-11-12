@@ -72,6 +72,20 @@ export class StrudelController {
     return 'Playing';
   }
 
+  async update(): Promise<string> {
+    if (!this.page) throw new Error('Not initialized');
+
+    try {
+      await this.page.click('button[title="update"]', { timeout: 1000 });
+    } catch {
+      await this.page.keyboard.press('ControlOrMeta+Enter');
+    }
+
+    await this.page.waitForTimeout(500);
+
+    return 'Pattern updated';
+  }
+
   async stop(): Promise<string> {
     if (!this.page) throw new Error('Not initialized');
 
