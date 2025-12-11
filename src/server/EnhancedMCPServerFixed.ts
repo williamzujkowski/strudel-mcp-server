@@ -11,6 +11,8 @@ import { MusicTheory } from '../services/MusicTheory.js';
 import { PatternGenerator } from '../services/PatternGenerator.js';
 import { readFileSync, existsSync } from 'fs';
 import { Logger } from '../utils/Logger.js';
+import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
+import { InputValidator } from '../utils/InputValidator.js';
 
 const configPath = './config.json';
 const config = existsSync(configPath) 
@@ -24,6 +26,7 @@ export class EnhancedMCPServerFixed {
   private theory: MusicTheory;
   private generator: PatternGenerator;
   private logger: Logger;
+  private perfMonitor: PerformanceMonitor;
   private sessionHistory: string[] = [];
   private undoStack: string[] = [];
   private redoStack: string[] = [];
@@ -48,6 +51,7 @@ export class EnhancedMCPServerFixed {
     this.theory = new MusicTheory();
     this.generator = new PatternGenerator();
     this.logger = new Logger();
+    this.perfMonitor = new PerformanceMonitor();
     this.setupHandlers();
   }
 
@@ -268,6 +272,18 @@ export class EnhancedMCPServerFixed {
         description: 'Key detection',
         inputSchema: { type: 'object', properties: {} }
       },
+      {
+        name: 'validate_pattern_runtime',
+        description: 'Validate pattern with runtime error checking (monitors Strudel console for errors)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            pattern: { type: 'string', description: 'Pattern code to validate' },
+            waitMs: { type: 'number', description: 'How long to wait for errors (default 500ms)' }
+          },
+          required: ['pattern']
+        }
+      },
 
       // Effects & Processing (5)
       {
@@ -434,6 +450,18 @@ export class EnhancedMCPServerFixed {
           },
           required: ['style']
         }
+      },
+
+      // Performance Monitoring (2)
+      {
+        name: 'performance_report',
+        description: 'Get performance metrics and bottlenecks',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'memory_usage',
+        description: 'Get current memory usage statistics',
+        inputSchema: { type: 'object', properties: {} }
       }
     ];
   }
@@ -445,23 +473,28 @@ export class EnhancedMCPServerFixed {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
+
       try {
         this.logger.info(`Executing tool: ${name}`, args);
-        let result = await this.executeTool(name, args);
-        
+
+        // Measure performance
+        const result = await this.perfMonitor.measureAsync(
+          name,
+          () => this.executeTool(name, args)
+        );
+
         return {
-          content: [{ 
-            type: 'text', 
-            text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) 
+          content: [{
+            type: 'text',
+            text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
           }],
         };
       } catch (error: any) {
         this.logger.error(`Tool execution failed: ${name}`, error);
         return {
-          content: [{ 
-            type: 'text', 
-            text: `Error: ${error.message}` 
+          content: [{
+            type: 'text',
+            text: `Error: ${error.message}`
           }],
         };
       }
@@ -470,10 +503,11 @@ export class EnhancedMCPServerFixed {
 
   private requiresInitialization(toolName: string): boolean {
     const toolsRequiringInit = [
-      'write', 'append', 'insert', 'replace', 'play', 'pause', 'stop', 
+      'write', 'append', 'insert', 'replace', 'play', 'pause', 'stop',
       'clear', 'get_pattern', 'analyze', 'analyze_spectrum', 'analyze_rhythm',
       'transpose', 'reverse', 'stretch', 'humanize', 'generate_variation',
-      'add_effect', 'add_swing', 'set_tempo', 'save', 'undo', 'redo'
+      'add_effect', 'add_swing', 'set_tempo', 'save', 'undo', 'redo',
+      'validate_pattern_runtime'
     ];
     
     const toolsRequiringWrite = [
@@ -552,18 +586,24 @@ export class EnhancedMCPServerFixed {
         return initResult;
       
       case 'write':
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, true);
         return await this.writePatternSafe(args.pattern);
-      
+
       case 'append':
+        InputValidator.validateStringLength(args.code, 'code', 10000, true);
         const current = await this.getCurrentPatternSafe();
         return await this.writePatternSafe(current + '\n' + args.code);
-      
+
       case 'insert':
+        InputValidator.validatePositiveInteger(args.position, 'position');
+        InputValidator.validateStringLength(args.code, 'code', 10000, true);
         const lines = (await this.getCurrentPatternSafe()).split('\n');
         lines.splice(args.position, 0, args.code);
         return await this.writePatternSafe(lines.join('\n'));
-      
+
       case 'replace':
+        InputValidator.validateStringLength(args.search, 'search', 1000, true);
+        InputValidator.validateStringLength(args.replace, 'replace', 10000, true);
         const pattern = await this.getCurrentPatternSafe();
         const replaced = pattern.replace(args.search, args.replace);
         return await this.writePatternSafe(replaced);
@@ -583,6 +623,13 @@ export class EnhancedMCPServerFixed {
       
       // Pattern Generation - These can work without browser
       case 'generate_pattern':
+        InputValidator.validateStringLength(args.style, 'style', 100, false);
+        if (args.key) {
+          InputValidator.validateRootNote(args.key);
+        }
+        if (args.bpm !== undefined) {
+          InputValidator.validateBPM(args.bpm);
+        }
         const generated = this.generator.generateCompletePattern(
           args.style,
           args.key || 'C',
@@ -592,6 +639,10 @@ export class EnhancedMCPServerFixed {
         return `Generated ${args.style} pattern`;
       
       case 'generate_drums':
+        InputValidator.validateStringLength(args.style, 'style', 100, false);
+        if (args.complexity !== undefined) {
+          InputValidator.validateNormalizedValue(args.complexity, 'complexity');
+        }
         const drums = this.generator.generateDrumPattern(args.style, args.complexity || 0.5);
         const currentDrum = await this.getCurrentPatternSafe();
         const newDrumPattern = currentDrum ? currentDrum + '\n' + drums : drums;
@@ -599,6 +650,8 @@ export class EnhancedMCPServerFixed {
         return `Generated ${args.style} drums`;
       
       case 'generate_bassline':
+        InputValidator.validateRootNote(args.key);
+        InputValidator.validateStringLength(args.style, 'style', 100, false);
         const bass = this.generator.generateBassline(args.key, args.style);
         const currentBass = await this.getCurrentPatternSafe();
         const newBassPattern = currentBass ? currentBass + '\n' + bass : bass;
@@ -606,6 +659,11 @@ export class EnhancedMCPServerFixed {
         return `Generated ${args.style} bassline in ${args.key}`;
       
       case 'generate_melody':
+        InputValidator.validateRootNote(args.root);
+        InputValidator.validateScaleName(args.scale);
+        if (args.length !== undefined) {
+          InputValidator.validatePositiveInteger(args.length, 'length');
+        }
         const scale = this.theory.generateScale(args.root, args.scale);
         const melody = this.generator.generateMelody(scale, args.length || 8);
         const currentMelody = await this.getCurrentPatternSafe();
@@ -615,10 +673,14 @@ export class EnhancedMCPServerFixed {
       
       // Music Theory - These don't require browser
       case 'generate_scale':
+        InputValidator.validateRootNote(args.root);
+        InputValidator.validateScaleName(args.scale);
         const scaleNotes = this.theory.generateScale(args.root, args.scale);
         return `${args.root} ${args.scale} scale: ${scaleNotes.join(', ')}`;
       
       case 'generate_chord_progression':
+        InputValidator.validateRootNote(args.key);
+        InputValidator.validateChordStyle(args.style);
         const progression = this.theory.generateChordProgression(args.key, args.style);
         const chordPattern = this.generator.generateChords(progression);
         const currentChords = await this.getCurrentPatternSafe();
@@ -627,9 +689,13 @@ export class EnhancedMCPServerFixed {
         return `Generated ${args.style} progression in ${args.key}: ${progression}`;
       
       case 'generate_euclidean':
+        InputValidator.validateEuclidean(args.hits, args.steps);
+        if (args.sound) {
+          InputValidator.validateStringLength(args.sound, 'sound', 100, false);
+        }
         const euclidean = this.generator.generateEuclideanPattern(
-          args.hits, 
-          args.steps, 
+          args.hits,
+          args.steps,
           args.sound || 'bd'
         );
         const currentEuc = await this.getCurrentPatternSafe();
@@ -638,6 +704,12 @@ export class EnhancedMCPServerFixed {
         return `Generated Euclidean rhythm (${args.hits}/${args.steps})`;
       
       case 'generate_polyrhythm':
+        args.sounds.forEach((sound: string) => {
+          InputValidator.validateStringLength(sound, 'sound', 100, false);
+        });
+        args.patterns.forEach((pattern: number) => {
+          InputValidator.validatePositiveInteger(pattern, 'pattern');
+        });
         const poly = this.generator.generatePolyrhythm(args.sounds, args.patterns);
         const currentPoly = await this.getCurrentPatternSafe();
         const newPolyPattern = currentPoly ? currentPoly + '\n' + poly : poly;
@@ -645,6 +717,10 @@ export class EnhancedMCPServerFixed {
         return `Generated polyrhythm`;
       
       case 'generate_fill':
+        InputValidator.validateStringLength(args.style, 'style', 100, false);
+        if (args.bars !== undefined) {
+          InputValidator.validatePositiveInteger(args.bars, 'bars');
+        }
         const fill = this.generator.generateFill(args.style, args.bars || 1);
         const currentFill = await this.getCurrentPatternSafe();
         const newFillPattern = currentFill ? currentFill + '\n' + fill : fill;
@@ -653,6 +729,10 @@ export class EnhancedMCPServerFixed {
       
       // Pattern Manipulation - These require browser
       case 'transpose':
+        // Semitones can be positive or negative, just validate it's a number
+        if (typeof args.semitones !== 'number' || !Number.isInteger(args.semitones)) {
+          throw new Error('Semitones must be an integer');
+        }
         const toTranspose = await this.getCurrentPatternSafe();
         const transposed = this.transposePattern(toTranspose, args.semitones);
         await this.writePatternSafe(transposed);
@@ -665,12 +745,16 @@ export class EnhancedMCPServerFixed {
         return 'Pattern reversed';
       
       case 'stretch':
+        InputValidator.validateGain(args.factor); // Positive number, use gain validator for simplicity
         const toStretch = await this.getCurrentPatternSafe();
         const stretched = toStretch + `.slow(${args.factor})`;
         await this.writePatternSafe(stretched);
         return `Stretched by factor of ${args.factor}`;
       
       case 'humanize':
+        if (args.amount !== undefined) {
+          InputValidator.validateNormalizedValue(args.amount, 'amount');
+        }
         const toHumanize = await this.getCurrentPatternSafe();
         const humanized = toHumanize + `.nudge(rand.range(-${args.amount || 0.01}, ${args.amount || 0.01}))`;
         await this.writePatternSafe(humanized);
@@ -684,20 +768,26 @@ export class EnhancedMCPServerFixed {
       
       // Effects - These require browser
       case 'add_effect':
+        InputValidator.validateStringLength(args.effect, 'effect', 100, false);
+        if (args.params) {
+          InputValidator.validateStringLength(args.params, 'params', 1000, true);
+        }
         const currentEffect = await this.getCurrentPatternSafe();
-        const withEffect = args.params 
+        const withEffect = args.params
           ? currentEffect + `.${args.effect}(${args.params})`
           : currentEffect + `.${args.effect}()`;
         await this.writePatternSafe(withEffect);
         return `Added ${args.effect} effect`;
       
       case 'add_swing':
+        InputValidator.validateNormalizedValue(args.amount, 'amount');
         const currentSwing = await this.getCurrentPatternSafe();
         const withSwing = currentSwing + `.swing(${args.amount})`;
         await this.writePatternSafe(withSwing);
         return `Added swing: ${args.amount}`;
       
       case 'set_tempo':
+        InputValidator.validateBPM(args.bpm);
         const currentTempo = await this.getCurrentPatternSafe();
         const withTempo = `setcpm(${args.bpm})\n${currentTempo}`;
         await this.writePatternSafe(withTempo);
@@ -733,9 +823,27 @@ export class EnhancedMCPServerFixed {
       
       case 'detect_key':
         return 'Key detection: Coming soon';
-      
+
+      case 'validate_pattern_runtime':
+        if (!this.isInitialized) {
+          return 'Browser not initialized. Run init first.';
+        }
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
+        const validation = await this.controller.validatePatternRuntime(
+          args.pattern,
+          args.waitMs || 500
+        );
+
+        if (validation.valid) {
+          return `✅ Pattern valid - no runtime errors detected`;
+        } else {
+          return `❌ Pattern has runtime errors:\n${validation.errors.join('\n')}\n` +
+                 (validation.warnings.length > 0 ? `\nWarnings:\n${validation.warnings.join('\n')}` : '');
+        }
+
       // Session Management
       case 'save':
+        InputValidator.validateStringLength(args.name, 'name', 255, false);
         const toSave = await this.getCurrentPatternSafe();
         if (!toSave) {
           return 'No pattern to save';
@@ -744,6 +852,7 @@ export class EnhancedMCPServerFixed {
         return `Pattern saved as "${args.name}"`;
       
       case 'load':
+        InputValidator.validateStringLength(args.name, 'name', 255, false);
         const saved = await this.store.load(args.name);
         if (saved) {
           await this.writePatternSafe(saved.content);
@@ -752,8 +861,11 @@ export class EnhancedMCPServerFixed {
         return `Pattern "${args.name}" not found`;
       
       case 'list':
+        if (args?.tag) {
+          InputValidator.validateStringLength(args.tag, 'tag', 100, false);
+        }
         const patterns = await this.store.list(args?.tag);
-        return patterns.map(p => 
+        return patterns.map(p =>
           `• ${p.name} [${p.tags.join(', ')}] - ${p.timestamp}`
         ).join('\n') || 'No patterns found';
       
@@ -782,7 +894,17 @@ export class EnhancedMCPServerFixed {
           return 'Redone';
         }
         return 'Nothing to redo';
-      
+
+      // Performance Monitoring
+      case 'performance_report':
+        const report = this.perfMonitor.getReport();
+        const bottlenecks = this.perfMonitor.getBottlenecks(5);
+        return `${report}\n\nTop 5 Bottlenecks:\n${JSON.stringify(bottlenecks, null, 2)}`;
+
+      case 'memory_usage':
+        const memory = this.perfMonitor.getMemoryUsage();
+        return memory ? JSON.stringify(memory, null, 2) : 'Memory usage not available';
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
