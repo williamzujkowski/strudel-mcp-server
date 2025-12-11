@@ -2,10 +2,13 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
-
 COPY tsconfig.json ./
 COPY src ./src
+
+# Install dependencies without running prepare hook
+RUN npm ci --ignore-scripts
+
+# Now build after source is available
 RUN npm run build
 
 FROM node:20-alpine AS runtime
@@ -20,8 +23,12 @@ WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
-COPY config.json ./
-COPY patterns ./patterns
+
+# Create patterns directory (doesn't exist in repo)
+RUN mkdir -p patterns
+
+# Copy config if it exists (optional)
+COPY config.json ./ 2>/dev/null || echo '{"headless":true}' > config.json
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]

@@ -46,10 +46,10 @@ test-results/
 playwright-report/
 playwright/.cache/
 
-# Claude/AI Integration (keep for development)
-.claude-flow/  # Keep for development
-.hive-mind/    # Keep for development
-.swarm/        # Keep for development
+# Claude/AI Integration artifacts (development tools, not needed in repo)
+.claude-flow/
+.hive-mind/
+.swarm/
 
 # Generated files
 claude_desktop_config_example.json
