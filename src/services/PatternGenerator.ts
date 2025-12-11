@@ -3,6 +3,12 @@ import { MusicTheory } from './MusicTheory.js';
 export class PatternGenerator {
   private theory = new MusicTheory();
 
+  /**
+   * Generates a drum pattern for a given style
+   * @param style - Music style (e.g., 'techno', 'house', 'dnb', 'ambient')
+   * @param complexity - Pattern complexity from 0 to 1 (default: 1)
+   * @returns Strudel drum pattern code
+   */
   generateDrumPattern(style: string, complexity: number = 1): string {
     const patterns: Record<string, string[]> = {
       techno: [
@@ -53,6 +59,12 @@ export class PatternGenerator {
     return stylePatterns[index];
   }
 
+  /**
+   * Generates a bassline pattern for a given key and style
+   * @param key - Musical key (e.g., 'C', 'D', 'F#')
+   * @param style - Music style (e.g., 'techno', 'house', 'acid', 'dub')
+   * @returns Strudel bassline pattern code
+   */
   generateBassline(key: string, style: string): string {
     const patterns: Record<string, string> = {
       techno: `note("${key}2 ${key}2 ${key}2 ${key}2").s("sawtooth").cutoff(800)`,
@@ -68,6 +80,13 @@ export class PatternGenerator {
     return patterns[style] || patterns.techno;
   }
 
+  /**
+   * Generates a melodic pattern from a scale
+   * @param scale - Array of note names to use
+   * @param length - Number of notes in the melody (default: 8)
+   * @param octaveRange - Tuple of min and max octave numbers (default: [3, 5])
+   * @returns Strudel melody pattern code
+   */
   generateMelody(scale: string[], length: number = 8, octaveRange: [number, number] = [3, 5]): string {
     const notes = [];
     let lastNoteIndex = Math.floor(Math.random() * scale.length);
@@ -96,6 +115,12 @@ export class PatternGenerator {
     return `note("${notes.join(' ')}").s("triangle")`;
   }
 
+  /**
+   * Generates a chord pattern from a progression
+   * @param progression - Chord progression string
+   * @param voicing - Chord voicing style (default: 'triad')
+   * @returns Strudel chord pattern code
+   */
   generateChords(progression: string, voicing: string = 'triad'): string {
     const voicings: Record<string, string> = {
       triad: '.struct("1 ~ ~ ~")',
@@ -108,6 +133,13 @@ export class PatternGenerator {
     return `note(${progression}).s("sawtooth")${voicings[voicing] || voicings.triad}`;
   }
 
+  /**
+   * Generates a complete multi-layer musical pattern
+   * @param style - Music style (e.g., 'techno', 'house', 'jazz', 'ambient')
+   * @param key - Musical key (default: 'C')
+   * @param bpm - Tempo in beats per minute (default: 120)
+   * @returns Complete Strudel pattern with drums, bass, chords, and melody
+   */
   generateCompletePattern(style: string, key: string = 'C', bpm: number = 120): string {
     const drums = this.generateDrumPattern(style, 0.7);
     const bass = this.generateBassline(key, style);
@@ -138,6 +170,12 @@ stack(
 ).gain(0.8)`;
   }
 
+  /**
+   * Generates variations on an existing pattern
+   * @param pattern - Original pattern code
+   * @param variationType - Type of variation ('subtle', 'moderate', 'extreme', 'glitch', 'evolving')
+   * @returns Pattern with variation modifiers applied
+   */
   generateVariation(pattern: string, variationType: string = 'subtle'): string {
     const variations: Record<string, string> = {
       subtle: '.sometimes(x => x.fast(2))',
@@ -150,6 +188,12 @@ stack(
     return pattern + (variations[variationType] || variations.subtle);
   }
 
+  /**
+   * Generates a drum fill for transitions
+   * @param style - Music style for the fill
+   * @param bars - Length of the fill in bars (default: 1)
+   * @returns Strudel fill pattern code
+   */
   generateFill(style: string, bars: number = 1): string {
     const fills: Record<string, string> = {
       techno: `s("bd*8, cp*4").fast(${bars})`,
@@ -162,6 +206,13 @@ stack(
     return fills[style] || fills.techno;
   }
 
+  /**
+   * Generates a transition between two musical styles
+   * @param fromStyle - Starting music style
+   * @param toStyle - Target music style
+   * @param bars - Length of transition in bars (default: 4)
+   * @returns Strudel transition pattern with crossfade
+   */
   generateTransition(fromStyle: string, toStyle: string, bars: number = 4): string {
     return `// Transition from ${fromStyle} to ${toStyle}
 stack(
@@ -173,11 +224,25 @@ stack(
 )`;
   }
 
+  /**
+   * Generates a Euclidean rhythm pattern
+   * @param hits - Number of hits in the pattern
+   * @param steps - Total number of steps
+   * @param sound - Sound name to use (default: "bd")
+   * @returns Strudel Euclidean pattern code
+   */
   generateEuclideanPattern(hits: number, steps: number, sound: string = "bd"): string {
     const rhythm = this.theory.generateEuclideanRhythm(hits, steps);
     return `s("${sound}").struct("${rhythm}")`;
   }
 
+  /**
+   * Generates a polyrhythmic pattern with multiple Euclidean rhythms
+   * @param sounds - Array of sound names to use
+   * @param patterns - Array of hit counts for each rhythm
+   * @returns Strudel polyrhythm pattern code
+   * @throws {Error} When sounds and patterns arrays have different lengths
+   */
   generatePolyrhythm(sounds: string[], patterns: number[]): string {
     if (sounds.length !== patterns.length) {
       throw new Error('Number of sounds must match number of patterns');
