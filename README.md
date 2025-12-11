@@ -1,6 +1,8 @@
 # Strudel MCP Server
 
-> 🎵 Production-ready MCP server for AI-powered music generation with Strudel.cc
+> 🎵 Open source MCP server for AI-powered music generation with Strudel.cc
+>
+> **Status:** Actively developed | Experimental | Contributions welcome
 
 <a href="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server/badge" alt="Strudel Server MCP server" />
@@ -11,7 +13,23 @@
 [![Tools](https://img.shields.io/badge/tools-40+-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A fully-tested Model Context Protocol (MCP) server that gives Claude complete control over [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition. **All features verified working with real Strudel.cc interaction.**
+An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
+
+**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 52% with 435 out of 444 tests passing. See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+
+## Table of Contents
+
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Available Tools](#-available-tools-40)
+- [Usage Examples](#-usage-examples)
+- [Architecture](#-architecture)
+- [Advanced Usage](#-advanced-usage)
+- [Configuration](#-configuration)
+- [Troubleshooting](#-troubleshooting)
+- [Development](#-development)
+- [Contributing](#-contributing)
 
 ## ✨ Features
 
@@ -23,12 +41,15 @@ A fully-tested Model Context Protocol (MCP) server that gives Claude complete co
 - **Music Theory Engine**: Scales, chords, progressions, euclidean rhythms
 - **Session Management**: Save, load, undo/redo with pattern storage
 
-### 🚀 Verified & Production-Ready
-- ✅ **100% Test Coverage**: All tools tested with real Strudel.cc
-- ✅ **Browser Integration**: Confirmed working with live website
-- ✅ **Audio Analysis**: Real-time frequency data extraction working
-- ✅ **Pattern Playback**: All generated patterns play correctly
-- ✅ **Error Handling**: Graceful handling of all edge cases
+### 🔧 Testing & Development Status
+- ✅ **Test Suite**: 435 of 444 tests passing (97.9% pass rate)
+- ⚠️ **Code Coverage**: 52% statement coverage (goal: 80%)
+- ✅ **Browser Integration**: Works with live Strudel.cc website
+- ✅ **Audio Analysis**: Real-time FFT analysis functional
+- ✅ **Pattern Generation**: Core music generation features working
+- ⚠️ **Error Handling**: Basic retry logic implemented, improvements ongoing
+
+**Not Production-Ready:** This is experimental software under active development. Use for exploration and experimentation. Expect breaking changes, bugs, and incomplete features. See [CONTRIBUTING.md](CONTRIBUTING.md) to help improve it.
 
 ## 📦 Installation
 
@@ -132,36 +153,206 @@ Then ask Claude:
 | `undo` | Undo last action |
 | `redo` | Redo action |
 
-## 🎵 Verified Working Examples
+## 🎵 Usage Examples
 
-### Create a Techno Track
+### Basic Pattern Creation
+
+**Create a Simple Beat**
 ```
-You: Initialize Strudel and create a techno track at 130 BPM
+You: Initialize Strudel and create a simple techno beat
 
-Claude: I'll create a techno track for you.
-[Initializes Strudel]
-[Generates pattern with drums, bass, and melody]
-[Starts playback]
+Claude: [Initializes browser]
+        [Generates and writes pattern]
+        [Starts playback]
+
+Pattern created:
+setcpm(130)
+stack(
+  s("bd*4"),
+  s("~ cp ~ cp"),
+  s("hh*8").gain(0.4)
+).gain(0.8)
 ```
 
-### Jazz Chord Progression
+**Generate a Bassline**
 ```
-You: Generate a ii-V-I progression in F major and play it
+You: Add a techno bassline in C
 
-Claude: [Generates: "Gm7" "C7" "Fmaj7"]
-[Creates chord pattern with voicings]
-[Plays the progression]
+Claude: [Generates bassline]
+        [Appends to current pattern]
+
+Added: note("c2 c2 c2 c2").s("sawtooth").cutoff(800)
 ```
 
-### Live Audio Analysis
-```
-You: Analyze what's currently playing
+### Advanced Music Generation
 
-Claude: The audio analysis shows:
-- Strong bass presence (180/255)
-- Peak frequency: 120 Hz (kick drum)
-- Pattern is actively playing
-- Balanced frequency distribution
+**Jazz Composition**
+```
+You: Create a jazz progression in F major with a walking bass
+
+Claude: Generated progression: "Gm7" "C7" "Fmaj7"
+
+Pattern:
+stack(
+  note("Gm7" "C7" "Fmaj7").struct("1 ~ ~ ~").s("piano"),
+  note("g2 c2 f2").s("sine").gain(0.7)
+)
+```
+
+**Drum & Bass Track**
+```
+You: Generate a complete drum & bass track at 174 BPM
+
+Claude: [Creates multi-layer pattern with drums, bass, and pads]
+
+// dnb pattern in C at 174 BPM
+setcpm(174)
+stack(
+  // Drums
+  s("bd ~ ~ [bd bd] ~ ~ bd ~, ~ ~ cp ~ ~ cp ~ ~").fast(2),
+
+  // Bass
+  note("c1 ~ ~ c2 ~ c1 ~ ~").s("square").cutoff(400),
+
+  // Pads (atmospheric)
+  note("c3 eb3 g3 bb3").s("sawtooth")
+    .attack(2).release(4).room(0.8).gain(0.6)
+)
+```
+
+### Real-Time Manipulation
+
+**Live Audio Analysis**
+```
+You: Analyze what's playing and show me the frequency breakdown
+
+Claude: Audio Analysis Results:
+{
+  "connected": true,
+  "features": {
+    "average": 78.5,
+    "peak": 180,
+    "peakFrequency": 120,
+    "bass": 145,
+    "mid": 82,
+    "treble": 45,
+    "isPlaying": true,
+    "brightness": "balanced"
+  }
+}
+
+Strong bass presence detected - typical for techno/house patterns.
+```
+
+**Pattern Variations**
+```
+You: Create a glitchy variation of the current pattern
+
+Claude: [Applies glitch transformation]
+
+Added: .sometimes(x => x.chop(8).rev).rarely(x => x.speed(-1))
+```
+
+### Multi-Track Composition
+
+**Layered Ambient Track**
+```
+You: Create an ambient soundscape with multiple layers
+
+Claude: [Generates complex multi-layer pattern]
+
+setcpm(90)
+stack(
+  // Deep bass drone
+  note("c1").s("sine").attack(4).release(8).gain(0.5),
+
+  // Texture pad
+  note("c3 eb3 g3").s("sawtooth")
+    .attack(2).release(6).room(0.9).gain(0.4),
+
+  // Sparse percussion
+  s("bd ~ ~ ~, ~ ~ ~ hh:8").room(0.9).gain(0.3),
+
+  // Melodic sparkles
+  note("c5 g5 eb5 bb5").struct("~ 1 ~ 1 ~ ~ 1 ~")
+    .s("triangle").delay(0.5).room(0.8).gain(0.3)
+)
+```
+
+### Session Management
+
+**Save and Load Patterns**
+```
+You: Save this pattern as "techno-groove-1" with tags "techno" and "experimental"
+
+Claude: Pattern saved as "techno-groove-1"
+
+---
+
+You: List all my techno patterns
+
+Claude: Saved patterns with tag "techno":
+• techno-groove-1 [techno, experimental] - 2025-10-23T19:30:00.000Z
+• acid-bassline [techno, acid] - 2025-10-23T18:15:00.000Z
+
+---
+
+You: Load "acid-bassline"
+
+Claude: Loaded pattern "acid-bassline"
+[Pattern written to editor]
+```
+
+### Music Theory Applications
+
+**Generate Euclidean Rhythms**
+```
+You: Create a 5/8 euclidean rhythm with kick drum
+
+Claude: Generated Euclidean rhythm (5/8)
+
+Pattern: s("bd").struct("1 ~ 1 ~ 1 1 ~ 1")
+```
+
+**Complex Polyrhythms**
+```
+You: Generate a polyrhythm with kick (4/16), snare (7/16), and hi-hat (3/16)
+
+Claude: Generated polyrhythm
+
+stack(
+  s("bd").euclid(4, 16),
+  s("cp").euclid(7, 16),
+  s("hh").euclid(3, 16)
+)
+```
+
+### Integration with LLM Agents
+
+**AI-Assisted Composition**
+```
+You: Analyze the mood of my current pattern and suggest complementary elements
+
+Claude: [Analyzes pattern structure and audio features]
+
+Your pattern has:
+- Energetic rhythm (130 BPM)
+- Strong bass presence
+- Minimal melodic content
+
+Suggestions:
+1. Add arpeggiated synth for movement
+2. Include occasional breaks/fills
+3. Layer atmospheric pad for depth
+
+Would you like me to add any of these?
+
+You: Add an arpeggiated synth in C minor
+
+Claude: [Generates and adds]
+
+note("c4 eb4 g4 bb4 c5").struct("1 1 1 1 1 1 1 1")
+  .s("triangle").delay(0.25).room(0.3).gain(0.5)
 ```
 
 ## 🧪 Testing
@@ -175,7 +366,7 @@ npm run test:integration
 # Run browser tests
 node tests/strudel-integration.js
 
-# Test results: 100% pass rate (19/19 tests)
+# Test results: 435/444 tests passing (98.0%), including 19/19 browser integration tests
 ```
 
 See [BROWSER_TEST_RESULTS.md](BROWSER_TEST_RESULTS.md) for detailed test results.
@@ -197,21 +388,244 @@ See [BROWSER_TEST_RESULTS.md](BROWSER_TEST_RESULTS.md) for detailed test results
 
 ## 🏗️ Architecture
 
+### System Overview
+
+The Strudel MCP Server is built with a modular architecture that separates concerns and enables robust music generation:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       Claude AI                              │
+│                  (MCP Client)                                │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ MCP Protocol (stdio)
+                        │
+┌───────────────────────▼─────────────────────────────────────┐
+│              EnhancedMCPServerFixed                          │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Tool Request Handler                                  │ │
+│  │  - Validates inputs                                    │ │
+│  │  - Routes to appropriate service                       │ │
+│  │  - Handles errors gracefully                           │ │
+│  └────────────────────────────────────────────────────────┘ │
+└───────┬────────────┬────────────┬───────────┬──────────────┘
+        │            │            │           │
+   ┌────▼────┐  ┌───▼────┐  ┌───▼────┐  ┌──▼──────┐
+   │ Strudel │  │ Music  │  │Pattern │  │ Pattern │
+   │Controller│  │ Theory │  │Generator│  │  Store  │
+   └────┬────┘  └────────┘  └────────┘  └─────────┘
+        │
+   ┌────▼────────────────────────────┐
+   │   Playwright Browser            │
+   │  ┌──────────────────────────┐   │
+   │  │   Strudel.cc Website     │   │
+   │  │  ┌────────────────────┐  │   │
+   │  │  │  CodeMirror Editor │  │   │
+   │  │  └────────────────────┘  │   │
+   │  │  ┌────────────────────┐  │   │
+   │  │  │  Audio Context     │  │   │
+   │  │  │  + Web Audio API   │  │   │
+   │  │  └────────┬───────────┘  │   │
+   │  └───────────┼──────────────┘   │
+   └──────────────┼──────────────────┘
+                  │
+          ┌───────▼────────┐
+          │ Audio Analyzer │
+          │  - FFT Analysis│
+          │  - Frequency   │
+          │  - Spectral    │
+          └────────────────┘
+```
+
+### Core Components
+
+#### 1. **EnhancedMCPServerFixed** (`src/server/EnhancedMCPServerFixed.ts`)
+
+Main MCP server implementation handling:
+- **40+ Tool Definitions**: Complete API surface for music control
+- **Request Routing**: Directs tool calls to appropriate handlers
+- **State Management**: Tracks initialization, undo/redo stacks, pattern cache
+- **Error Handling**: Graceful degradation and informative error messages
+- **Lazy Initialization**: Browser starts only when needed
+
+Key Features:
+```typescript
+- Pattern caching before browser init
+- Undo/redo stack management
+- Session history tracking
+- Generated pattern storage
+- Safe fallback mechanisms
+```
+
+#### 2. **StrudelController** (`src/StrudelController.ts`)
+
+Browser automation layer using Playwright:
+- **Browser Management**: Chromium instance lifecycle
+- **Editor Control**: CodeMirror manipulation via DOM
+- **Playback Control**: Keyboard shortcuts for play/stop
+- **Performance Optimizations**:
+  - Editor content caching (100ms TTL)
+  - Direct CodeMirror API access
+  - Resource blocking (images, fonts)
+  - Fast DOM content loading
+
+```typescript
+// Example: Optimized pattern writing
+async writePattern(pattern: string) {
+  await this.page.evaluate((newPattern) => {
+    const editor = document.querySelector('.cm-content');
+    const view = editor.__view;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: newPattern }
+    });
+  }, pattern);
+}
+```
+
+#### 3. **AudioAnalyzer** (`src/AudioAnalyzer.ts`)
+
+Real-time audio analysis via Web Audio API injection:
+- **FFT Analysis**: 1024-point FFT for spectral data
+- **Frequency Bands**: Bass, low-mid, mid, high-mid, treble
+- **Analysis Caching**: 50ms TTL for performance
+- **Features Extracted**:
+  - Average amplitude
+  - Peak frequency
+  - Spectral centroid
+  - Playing state detection
+  - Frequency distribution
+
+```typescript
+Features provided:
+- average: Overall amplitude (0-255)
+- peak: Maximum amplitude
+- peakFrequency: Dominant frequency in Hz
+- bass/mid/treble: Band-specific amplitudes
+- brightness: Timbral classification
+- isPlaying: Boolean playback state
+```
+
+#### 4. **MusicTheory** (`src/services/MusicTheory.ts`)
+
+Music theory engine providing:
+- **15+ Scales**: Major, minor, modes, pentatonic, blues, whole-tone
+- **Chord Progressions**: Pop, jazz, blues, rock, folk, EDM
+- **Euclidean Rhythms**: Mathematical rhythm generation
+- **Arpeggio Generation**: Multiple patterns (up, down, random)
+- **Note Transposition**: Semitone-based pitch shifting
+
+Supported scales:
+```typescript
+major, minor, dorian, phrygian, lydian, mixolydian,
+aeolian, locrian, pentatonic, blues, chromatic,
+wholetone, harmonic_minor, melodic_minor
+```
+
+#### 5. **PatternGenerator** (`src/services/PatternGenerator.ts`)
+
+AI-powered pattern creation:
+- **Genre Templates**: Techno, house, DnB, trap, ambient, jazz
+- **Drum Patterns**: 4 complexity levels per genre
+- **Basslines**: 8 different styles
+- **Melody Generation**: Scale-based with musical intervals
+- **Variations**: Subtle, moderate, extreme, glitch, evolving
+- **Fills**: 1-4 bar drum fills
+
+Example generation:
+```typescript
+generateCompletePattern('techno', 'C', 130)
+→ Multi-layer pattern with drums, bass, chords, melody
+```
+
+#### 6. **PatternStore** (`src/PatternStore.ts`)
+
+Persistent pattern storage:
+- **JSON-based**: Simple file storage
+- **Metadata**: Name, tags, timestamp, audio features
+- **Tag Filtering**: Organize by genre, mood, project
+- **Sorted Retrieval**: Most recent first
+
+### Directory Structure
+
 ```
 strudel-mcp-server/
 ├── src/
-│   ├── server/              # MCP server implementation
-│   │   └── EnhancedMCPServerFixed.ts
-│   ├── services/            # Music generation
-│   │   ├── MusicTheory.ts  # Scales, chords, theory
-│   │   └── PatternGenerator.ts # Pattern creation
-│   ├── StrudelController.ts # Browser automation
-│   ├── AudioAnalyzer.ts    # Web Audio API integration
-│   └── PatternStore.ts     # Pattern persistence
-├── tests/                   # Comprehensive test suite
-│   └── strudel-integration.js # Real browser tests
-└── patterns/               # Saved patterns
+│   ├── server/
+│   │   ├── EnhancedMCPServer.ts          # Original implementation
+│   │   └── EnhancedMCPServerFixed.ts     # Production version
+│   ├── services/
+│   │   ├── MusicTheory.ts                # Theory engine
+│   │   └── PatternGenerator.ts           # Pattern creation
+│   ├── utils/
+│   │   └── Logger.ts                     # Logging utility
+│   ├── types/
+│   │   └── index.ts                      # TypeScript types
+│   ├── StrudelController.ts              # Browser automation
+│   ├── AudioAnalyzer.ts                  # Audio analysis
+│   ├── PatternStore.ts                   # Pattern persistence
+│   └── index.ts                          # Entry point
+├── tests/
+│   ├── browser-test.js                   # Browser integration
+│   ├── integration.test.js               # Integration tests
+│   ├── manual-test.js                    # Manual testing
+│   ├── mcp-tools.test.ts                 # MCP tool tests
+│   └── strudel-integration.js            # Full integration
+├── patterns/                             # Saved patterns
+├── config.json                           # Server configuration
+├── package.json                          # Dependencies
+└── tsconfig.json                         # TypeScript config
 ```
+
+### Data Flow
+
+1. **Tool Invocation**
+   ```
+   Claude → MCP Protocol → EnhancedMCPServerFixed
+   ```
+
+2. **Pattern Generation** (without browser)
+   ```
+   Server → PatternGenerator → MusicTheory → Pattern String
+   ```
+
+3. **Pattern Execution** (with browser)
+   ```
+   Server → StrudelController → Playwright → Strudel.cc
+   ```
+
+4. **Audio Analysis**
+   ```
+   Strudel.cc → Web Audio API → AudioAnalyzer → Feature Data
+   ```
+
+### Performance Characteristics
+
+| Operation | Latency | Notes |
+|-----------|---------|-------|
+| Pattern Generation | <100ms | Pure computation |
+| Browser Init | ~3s | One-time cost |
+| Pattern Write | ~50ms | With caching |
+| Play/Stop | ~100ms | Keyboard shortcuts |
+| Audio Analysis | ~20ms | With 50ms cache |
+| Pattern Save | ~10ms | File I/O |
+
+### Optimization Strategies
+
+1. **Caching**
+   - Editor content: 100ms TTL
+   - Audio analysis: 50ms TTL
+   - Generated patterns: Until browser init
+
+2. **Resource Blocking**
+   - Images, fonts, media blocked
+   - Only load essential JavaScript/CSS
+
+3. **Direct API Access**
+   - CodeMirror view manipulation
+   - Keyboard shortcuts over button clicks
+
+4. **Lazy Loading**
+   - Browser starts only when needed
+   - Services initialized on-demand
 
 ## 🎹 Pattern Examples
 
@@ -260,18 +674,387 @@ docker-compose up
 
 ## 🔧 Development
 
+### Setup Development Environment
+
+```bash
+# Clone the repository
+git clone https://github.com/williamzujkowski/strudel-mcp-server.git
+cd strudel-mcp-server
+
+# Install dependencies
+npm install
+
+# Install Playwright browsers
+npx playwright install chromium
+
+# Build the project
+npm run build
+```
+
+### Available Scripts
+
 ```bash
 # Development mode with hot reload
 npm run dev
 
-# Build TypeScript
+# Build TypeScript to dist/
 npm run build
 
-# Run tests
+# Start production server
+npm start
+
+# Run all tests
 npm test
 
-# Validate MCP server
+# Run integration tests with real browser
+npm run test:integration
+
+# Run browser-specific tests
+npm run test:browser
+
+# Validate MCP protocol compliance
 npm run validate
+
+# Lint code
+npm run lint
+
+# Format code
+npm run format
+
+# Clean build artifacts
+npm clean
+```
+
+### Project Structure
+
+```
+src/
+├── server/
+│   ├── EnhancedMCPServer.ts          # Original implementation
+│   └── EnhancedMCPServerFixed.ts     # Production version with caching
+│
+├── services/
+│   ├── MusicTheory.ts                # Music theory engine
+│   │   - 15+ scales (major, minor, modes, etc.)
+│   │   - Chord progressions (jazz, pop, blues, etc.)
+│   │   - Euclidean rhythm generation
+│   │   - Arpeggio generation
+│   │
+│   └── PatternGenerator.ts           # Pattern creation service
+│       - Genre-specific drum patterns
+│       - Bassline generation
+│       - Melody composition
+│       - Pattern variations
+│       - Complete track generation
+│
+├── utils/
+│   ├── Logger.ts                     # Logging utility
+│   ├── PerformanceMonitor.ts         # Performance tracking
+│   ├── PatternValidator.ts           # Pattern syntax validation
+│   └── ErrorRecovery.ts              # Error handling & recovery
+│
+├── types/
+│   └── index.ts                      # TypeScript type definitions
+│
+├── StrudelController.ts              # Browser automation
+│   - Chromium management via Playwright
+│   - CodeMirror editor manipulation
+│   - Playback control
+│   - Pattern validation
+│   - Error recovery
+│
+├── AudioAnalyzer.ts                  # Real-time audio analysis
+│   - Web Audio API injection
+│   - FFT spectral analysis
+│   - Frequency band detection
+│   - Playing state monitoring
+│
+├── PatternStore.ts                   # Pattern persistence
+│   - JSON-based storage
+│   - Tag-based organization
+│   - Metadata tracking
+│   - List caching
+│
+└── index.ts                          # Application entry point
+```
+
+### Adding New Tools
+
+To add a new MCP tool:
+
+1. **Define the tool** in `getTools()` method:
+```typescript
+{
+  name: 'my_new_tool',
+  description: 'Description of what it does',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      param1: { type: 'string', description: 'Parameter description' },
+      param2: { type: 'number', description: 'Numeric parameter' }
+    },
+    required: ['param1']
+  }
+}
+```
+
+2. **Implement the handler** in `executeTool()` switch statement:
+```typescript
+case 'my_new_tool':
+  // Your implementation here
+  return await this.someService.doSomething(args.param1, args.param2);
+```
+
+3. **Add necessary service methods** if needed:
+```typescript
+// In appropriate service file
+async doSomething(param1: string, param2?: number): Promise<string> {
+  // Implementation
+  return `Result: ${param1}`;
+}
+```
+
+4. **Test the tool**:
+```bash
+# Build
+npm run build
+
+# Test via MCP
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"my_new_tool","arguments":{"param1":"test"}},"id":2}' | node dist/index.js
+```
+
+### Testing Strategy
+
+#### 1. Unit Tests
+```bash
+# Run with Jest
+npm test
+
+# Watch mode
+npm run test:watch
+```
+
+#### 2. Integration Tests
+```bash
+# Full integration with real browser
+npm run test:integration
+
+# This tests:
+# - Browser initialization
+# - Pattern generation
+# - Audio analysis
+# - Pattern storage
+# - All 40+ tools
+```
+
+#### 3. Manual Testing
+```bash
+# Development mode
+npm run dev
+
+# In another terminal
+claude mcp add strudel-dev node $(pwd)/dist/index.js
+claude chat
+
+# Then interact with Claude
+```
+
+### Code Quality
+
+**TypeScript Configuration**
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,           // Strict type checking
+    "esModuleInterop": true,  // Better module compatibility
+    "target": "ES2020",       // Modern JavaScript
+    "module": "ES2020",       // ES modules
+    "moduleResolution": "node"
+  }
+}
+```
+
+**Linting & Formatting**
+```bash
+# ESLint
+npm run lint
+
+# Prettier
+npm run format
+
+# Pre-commit hooks recommended
+```
+
+### Debugging
+
+**Enable Debug Logging**
+```bash
+# Set DEBUG environment variable
+DEBUG=strudel:* npm start
+
+# Or specific modules
+DEBUG=strudel:controller npm start
+DEBUG=strudel:audio npm start
+```
+
+**VS Code Launch Configuration**
+```json
+{
+  "type": "node",
+  "request": "launch",
+  "name": "Debug MCP Server",
+  "program": "${workspaceFolder}/dist/index.js",
+  "preLaunchTask": "npm: build",
+  "console": "integratedTerminal",
+  "env": {
+    "DEBUG": "strudel:*"
+  }
+}
+```
+
+**Playwright Debugging**
+```typescript
+// In StrudelController.ts
+this.browser = await chromium.launch({
+  headless: false,  // See the browser
+  devtools: true,   // Open DevTools
+  slowMo: 100       // Slow down actions
+});
+```
+
+### Performance Monitoring
+
+The server includes built-in performance monitoring:
+
+```typescript
+// Access performance metrics
+You: Show me performance metrics
+
+Claude: Performance Report:
+{
+  "averageLatency": {
+    "init": "3.2s",
+    "write": "52ms",
+    "play": "105ms",
+    "analyze": "18ms"
+  },
+  "cacheHitRate": "85%",
+  "totalOperations": 1247,
+  "bottlenecks": [
+    {"tool": "init", "avgTime": 3200, "calls": 1},
+    {"tool": "write", "avgTime": 52, "calls": 156}
+  ]
+}
+```
+
+### Contributing Guidelines
+
+1. **Fork the repository**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/strudel-mcp-server.git
+   ```
+
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/my-new-feature
+   ```
+
+3. **Make your changes**
+   - Follow existing code style
+   - Add tests for new features
+   - Update documentation
+   - Ensure all tests pass
+
+4. **Commit with meaningful messages**
+   ```bash
+   git commit -m "feat: Add support for custom scale generation"
+   ```
+
+   Follow [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat:` New feature
+   - `fix:` Bug fix
+   - `docs:` Documentation changes
+   - `refactor:` Code refactoring
+   - `test:` Adding tests
+   - `chore:` Maintenance tasks
+
+5. **Push and create PR**
+   ```bash
+   git push origin feature/my-new-feature
+   ```
+
+   Then create a Pull Request on GitHub with:
+   - Clear description of changes
+   - Link to related issues
+   - Screenshots/examples if relevant
+
+### Release Process
+
+```bash
+# 1. Update version in package.json
+npm version patch  # or minor/major
+
+# 2. Update CHANGELOG.md
+# Add entry for new version
+
+# 3. Build and test
+npm run build
+npm test
+npm run test:integration
+
+# 4. Commit version bump
+git add .
+git commit -m "chore: Bump version to X.Y.Z"
+
+# 5. Create git tag
+git tag vX.Y.Z
+
+# 6. Push to GitHub
+git push origin main --tags
+
+# 7. Publish to npm (if you have access)
+npm publish --access public
+
+# 8. Create GitHub release
+gh release create vX.Y.Z --generate-notes
+```
+
+### Docker Development
+
+```bash
+# Build development image
+docker build -t strudel-mcp:dev .
+
+# Run with volume mount for hot reload
+docker run -it --rm \
+  -v $(pwd)/src:/app/src \
+  -v $(pwd)/patterns:/app/patterns \
+  strudel-mcp:dev
+
+# Run tests in container
+docker run -it --rm strudel-mcp:dev npm test
+```
+
+### Environment Variables
+
+```bash
+# Logging level
+LOG_LEVEL=debug        # debug, info, warn, error
+
+# Performance monitoring
+ENABLE_PERF_MONITORING=true
+
+# Pattern storage
+PATTERNS_DIR=./patterns
+
+# Browser configuration
+HEADLESS=false
+BROWSER_TIMEOUT=15000
+
+# Audio analysis
+FFT_SIZE=1024
+SMOOTHING=0.8
 ```
 
 ## 📊 Performance
@@ -283,30 +1066,401 @@ npm run validate
 - **Audio Analysis**: Real-time
 - **Memory Usage**: <150MB
 
+## 🎓 Advanced Usage
+
+### Custom Music Theory
+
+**Create Custom Scales**
+```typescript
+// The MusicTheory service supports 15+ built-in scales
+// You can request any combination:
+
+You: Generate a lydian scale starting on D
+
+Claude: D lydian scale: D, E, F#, G#, A, B, C#
+```
+
+**Complex Chord Progressions**
+```typescript
+You: Create a jazz ii-V-I progression in Bb with extended voicings
+
+Claude: Generated jazz progression in Bb: "Cm7" "F7" "Bbmaj7"
+
+Pattern:
+note("Cm7" "F7" "Bbmaj7")
+  .struct("1 ~ ~ ~")
+  .s("sawtooth")
+  .add(note("7"))  // Add 7th extensions
+  .room(0.4)
+```
+
+### Advanced Rhythm Techniques
+
+**Euclidean Patterns**
+```
+You: Create a complex polyrhythm using euclidean patterns:
+     - Bass drum: 7 hits in 16 steps
+     - Snare: 5 hits in 16 steps
+     - Hi-hat: 11 hits in 16 steps
+
+Claude: [Generates mathematically perfect polyrhythm]
+
+stack(
+  s("bd").euclid(7, 16),
+  s("cp").euclid(5, 16),
+  s("hh").euclid(11, 16)
+)
+```
+
+**Generative Variations**
+```
+You: Create 3 variations of my current pattern: subtle, moderate, and glitchy
+
+Claude: [Generates three variants]
+
+Version 1 (subtle):
+original.sometimes(x => x.fast(2))
+
+Version 2 (moderate):
+original.every(4, x => x.rev).sometimes(x => x.fast(2))
+
+Version 3 (glitchy):
+original.sometimes(x => x.chop(8).rev).rarely(x => x.speed(-1))
+```
+
+### Performance Optimization Tips
+
+**Pattern Caching**
+```
+// The server caches patterns intelligently:
+// - Generated patterns stored before browser init
+// - Editor content cached for 100ms
+// - Audio analysis cached for 50ms
+
+// For fastest performance:
+1. Generate patterns before initializing browser
+2. Initialize once and reuse the session
+3. Batch multiple changes together
+```
+
+**Headless Mode**
+```json
+// In config.json:
+{
+  "headless": true,  // Faster, no GUI
+  "strudel_url": "https://strudel.cc/",
+  "patterns_dir": "./patterns"
+}
+```
+
+### Integration Patterns
+
+**Workflow Automation**
+```
+You: Create a complete track:
+     1. Start with techno drums at 130 BPM
+     2. Add acid bassline in E
+     3. Layer ambient pads
+     4. Save as "track-001" with tags "techno", "acid", "experimental"
+
+Claude: [Executes full workflow]
+        [Initializes browser]
+        [Generates drum pattern]
+        [Adds bassline]
+        [Layers pads]
+        [Saves with metadata]
+
+Complete! Pattern saved as "track-001"
+```
+
+**Audio-Reactive Composition**
+```
+You: Monitor the audio and suggest adjustments based on frequency balance
+
+Claude: [Analyzes current playback]
+
+Analysis shows:
+- Bass: 180 (strong)
+- Mid: 45 (weak)
+- Treble: 30 (weak)
+
+Recommendations:
+1. Reduce bass gain by 20%
+2. Add mid-range melodic content
+3. Include hi-hat pattern for treble
+
+Apply changes? [Yes/No]
+```
+
+### Advanced Pattern Manipulation
+
+**Dynamic Transformations**
+```
+You: Apply these transformations in sequence:
+     1. Transpose up 3 semitones
+     2. Add 10% humanization
+     3. Apply reverb with 0.6 room size
+     4. Every 4th cycle, reverse the pattern
+
+Claude: [Applies transformations]
+
+Final pattern:
+[original]
+  .transpose(3)
+  .nudge(rand.range(-0.1, 0.1))
+  .room(0.6)
+  .every(4, x => x.rev)
+```
+
+**Conditional Logic**
+```
+You: Create a pattern that evolves:
+     - Bars 1-4: Simple kick pattern
+     - Bars 5-8: Add snare
+     - Bars 9-16: Add full drum kit
+     - Then loop with variations
+
+Claude: [Generates evolving pattern]
+
+s("bd*4")
+  .struct("1 ~ ~ ~")
+  .mask("<1 1 1 1 0 0 0 0>/4")  // First 4 bars
+  .stack(
+    s("~ cp ~ cp")
+      .mask("<0 0 0 0 1 1 1 1>/8")  // Bars 5-8
+  )
+  // Full complexity from bar 9
+  .every(8, x => x.sometimes(y => y.fast(2)))
+```
+
 ## 🐛 Troubleshooting
 
-### Browser doesn't open
+### Common Issues
+
+#### Browser doesn't open
+**Symptom**: `Error: Browser not initialized` or Chromium launch fails
+
+**Solutions**:
 ```bash
-# Install Chromium
+# Install Chromium for Playwright
+npx playwright install chromium
+
+# If that fails, try installing all browsers
+npx playwright install
+
+# Check Playwright installation
+npx playwright --version
+
+# For Linux, install dependencies
+sudo npx playwright install-deps chromium
+```
+
+#### Audio analysis returns "not connected"
+**Symptom**: Audio analysis shows `connected: false`
+
+**Solutions**:
+1. Ensure pattern is playing first:
+   ```
+   You: Play the pattern, wait 2 seconds, then analyze
+   ```
+
+2. Reinitialize the browser:
+   ```
+   You: Stop, close the browser, reinitialize, and try again
+   ```
+
+3. Check audio context activation:
+   - Audio contexts require user interaction on some systems
+   - The browser window must be visible (not headless) for first run
+
+#### Pattern syntax errors
+**Symptom**: Pattern doesn't play or shows errors in console
+
+**Solutions**:
+```
+Common issues:
+1. Missing quotes: s(bd*4) → s("bd*4")
+2. Unmatched parentheses: stack(s("bd")) → stack(s("bd")))
+3. Invalid note names: note("h2") → note("c2")
+
+Test with minimal pattern first:
+s("bd*4")
+
+Then build complexity gradually.
+```
+
+#### MCP connection issues
+**Symptom**: Claude can't find the server or tools
+
+**Solutions**:
+```bash
+# Verify server is built
+npm run build
+
+# Check if server responds
+echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js
+
+# Should return JSON with 40+ tools
+
+# Reinstall MCP server in Claude
+claude mcp remove strudel
+claude mcp add strudel node $(pwd)/dist/index.js
+
+# Restart Claude
+claude chat
+```
+
+#### Performance issues / Slow response
+**Symptom**: Operations take longer than expected
+
+**Solutions**:
+1. **Enable caching** (default, but verify):
+   - Editor caching: 100ms TTL
+   - Audio analysis: 50ms TTL
+
+2. **Use headless mode** for faster operation:
+   ```json
+   // config.json
+   { "headless": true }
+   ```
+
+3. **Batch operations**:
+   ```
+   Instead of:
+   - Add drums
+   - Add bass
+   - Add melody
+
+   Do:
+   - Generate complete pattern with drums, bass, and melody
+   ```
+
+4. **Reduce browser overhead**:
+   - Close other browser instances
+   - Disable browser DevTools
+   - Use resource blocking (enabled by default)
+
+#### Patterns not saving
+**Symptom**: `save` command fails or patterns don't persist
+
+**Solutions**:
+```bash
+# Check patterns directory exists
+ls -la ./patterns
+
+# Create manually if needed
+mkdir -p ./patterns
+
+# Verify write permissions
+touch ./patterns/test.json
+rm ./patterns/test.json
+
+# Check for invalid pattern names
+# Valid: "techno-beat-1", "my_pattern", "track001"
+# Invalid: "pattern/with/slashes", "name:with:colons"
+```
+
+### Platform-Specific Issues
+
+#### macOS
+```bash
+# Keyboard shortcut uses Meta (Cmd) key
+# Already handled by ControlOrMeta
+
+# If Chromium crashes on M1/M2:
+npx playwright install chromium --with-deps
+```
+
+#### Linux
+```bash
+# Install system dependencies
+sudo npx playwright install-deps chromium
+
+# If running in Docker/headless environment:
+# Ensure config.json has headless: true
+```
+
+#### Windows
+```bash
+# Use PowerShell or Git Bash
+# Paths should use forward slashes in config.json
+
+# If Chromium doesn't launch:
 npx playwright install chromium
 ```
 
-### Audio analysis not working
-- Ensure pattern is playing first
-- Wait 1-2 seconds after play for analysis
+### Debugging Tips
 
-### Pattern syntax errors
-- Check Strudel/TidalCycles documentation
-- Use simpler patterns for testing
+**Enable Verbose Logging**
+```bash
+# Set environment variable
+DEBUG=* node dist/index.js
+
+# Or in Claude:
+You: Enable detailed logging for the next operation
+```
+
+**Check Browser State**
+```
+You: Show me the current browser initialization state
+     and any cached patterns
+
+Claude: Browser state:
+- Initialized: true
+- Cached patterns: 2
+- Undo stack depth: 5
+- Last operation: write_pattern (2.5s ago)
+```
+
+**Validate Pattern Syntax**
+```
+You: Before playing, validate this pattern syntax:
+     s("bd*4, ~ cp ~ cp")
+
+Claude: [Checks syntax]
+Valid Strudel pattern.
+Ready to play.
+```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check existing issues**: [GitHub Issues](https://github.com/williamzujkowski/strudel-mcp-server/issues)
+2. **Run integration tests**: `npm run test:integration`
+3. **Enable debug mode**: `DEBUG=* npm start`
+4. **Consult Strudel docs**: [Strudel.cc documentation](https://strudel.cc/learn)
+5. **Create new issue**: Include error messages, OS, Node version, and steps to reproduce
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
+**We need your help!** This project is actively developed and welcomes contributions of all kinds:
+
+### Ways to Contribute
+- **Report Bugs**: Found an issue? [Open a bug report](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
+- **Suggest Features**: Have ideas? [Create a feature request](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
+- **Improve Docs**: Fix typos, add examples, clarify confusing sections
+- **Write Tests**: Help us reach 80% coverage (currently 52%)
+- **Fix Issues**: Check [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for bugs to fix
+- **Add Features**: Implement new tools or improve existing ones
+
+### Quick Start for Contributors
 1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Ensure all tests pass
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes and add tests
+4. Ensure tests pass (`npm test`)
+5. Commit with clear messages (`git commit -m 'fix: resolve audio analysis bug'`)
+6. Push to your fork (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+**First time contributor?** Look for issues labeled `good-first-issue` or `help-wanted`.
+
+### Feedback Welcome
+- Questions? Open a [Discussion](https://github.com/williamzujkowski/strudel-mcp-server/discussions)
+- Found something confusing? Tell us!
+- Have a use case we haven't considered? Share it!
+
+We review PRs promptly and welcome contributors of all skill levels. See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup instructions.
 
 ## 📄 License
 
@@ -321,4 +1475,6 @@ MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-**v2.2.0** - Fully tested with real Strudel.cc interaction | **100% working**
+**v2.2.0** - Open Source | Experimental | [Report Issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) | [Contribute](https://github.com/williamzujkowski/strudel-mcp-server/pulls)
+
+*This project is under active development. Core features work, but expect bugs and breaking changes. Not recommended for production use.*
