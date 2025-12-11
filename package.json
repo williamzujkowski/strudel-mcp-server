@@ -31,7 +31,7 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@modelcontextprotocol/sdk": "^1.24.0",
     "playwright": "^1.40.0"
   },
   "devDependencies": {
