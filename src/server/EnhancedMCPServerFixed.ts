@@ -819,10 +819,72 @@ export class EnhancedMCPServerFixed {
         };
       
       case 'detect_tempo':
-        return 'Tempo detection: Coming soon';
+        if (!this.isInitialized) {
+          return 'Browser not initialized. Run init first.';
+        }
+        try {
+          const tempoAnalysis = await this.controller.detectTempo();
+          if (!tempoAnalysis || tempoAnalysis.bpm === 0) {
+            return {
+              bpm: 0,
+              confidence: 0,
+              message: 'No tempo detected. Ensure audio is playing and has a clear rhythmic pattern.'
+            };
+          }
+          return {
+            bpm: tempoAnalysis.bpm,
+            confidence: Math.round(tempoAnalysis.confidence * 100) / 100,
+            method: tempoAnalysis.method,
+            message: `Detected ${tempoAnalysis.bpm} BPM with ${Math.round(tempoAnalysis.confidence * 100)}% confidence`
+          };
+        } catch (error: any) {
+          return {
+            bpm: 0,
+            confidence: 0,
+            error: error.message || 'Tempo detection failed'
+          };
+        }
       
       case 'detect_key':
-        return 'Key detection: Coming soon';
+        if (!this.isInitialized) {
+          return 'Browser not initialized. Run init first.';
+        }
+        try {
+          const keyAnalysis = await this.controller.detectKey();
+          if (!keyAnalysis || keyAnalysis.confidence < 0.1) {
+            return {
+              key: 'Unknown',
+              scale: 'unknown',
+              confidence: 0,
+              message: 'No clear key detected. Ensure audio is playing and has tonal content.'
+            };
+          }
+
+          const result: any = {
+            key: keyAnalysis.key,
+            scale: keyAnalysis.scale,
+            confidence: Math.round(keyAnalysis.confidence * 100) / 100,
+            message: `Detected ${keyAnalysis.key} ${keyAnalysis.scale} with ${Math.round(keyAnalysis.confidence * 100)}% confidence`
+          };
+
+          // Include alternatives if available and confidence is moderate
+          if (keyAnalysis.alternatives && keyAnalysis.alternatives.length > 0) {
+            result.alternatives = keyAnalysis.alternatives.map((alt: any) => ({
+              key: alt.key,
+              scale: alt.scale,
+              confidence: Math.round(alt.confidence * 100) / 100
+            }));
+          }
+
+          return result;
+        } catch (error: any) {
+          return {
+            key: 'Unknown',
+            scale: 'unknown',
+            confidence: 0,
+            error: error.message || 'Key detection failed'
+          };
+        }
 
       case 'validate_pattern_runtime':
         if (!this.isInitialized) {

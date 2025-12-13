@@ -6,8 +6,8 @@ import { Logger } from './utils/Logger.js';
 
 export class StrudelController {
   private browser: Browser | null = null;
-  private page: Page | null = null;
-  private analyzer: AudioAnalyzer;
+  private _page: Page | null = null;
+  public readonly analyzer: AudioAnalyzer;
   private validator: PatternValidator;
   private errorRecovery: ErrorRecovery;
   private logger: Logger;
@@ -55,10 +55,10 @@ export class StrudelController {
       reducedMotion: 'reduce',
     });
 
-    this.page = await context.newPage();
+    this._page = await context.newPage();
 
     // Optimize page loading
-    await this.page.route('**/*', (route) => {
+    await this._page.route('**/*', (route) => {
       const resourceType = route.request().resourceType();
       // Block unnecessary resources
       if (['image', 'font', 'media'].includes(resourceType)) {
@@ -68,18 +68,18 @@ export class StrudelController {
       }
     });
 
-    await this.page.goto('https://strudel.cc/', {
+    await this._page.goto('https://strudel.cc/', {
       waitUntil: 'domcontentloaded', // Changed from networkidle for faster load
       timeout: 15000,
     });
 
     // Wait for editor with optimized timeout
-    await this.page.waitForSelector('.cm-content', { timeout: 8000 });
+    await this._page.waitForSelector('.cm-content', { timeout: 8000 });
 
     // Set up console monitoring for runtime errors
     this.setupConsoleMonitoring();
 
-    await this.analyzer.inject(this.page);
+    await this.analyzer.inject(this._page);
 
     return 'Strudel initialized successfully';
   }
@@ -89,9 +89,9 @@ export class StrudelController {
    * Captures Strudel runtime errors that static validation can't catch
    */
   private setupConsoleMonitoring(): void {
-    if (!this.page) return;
+    if (!this._page) return;
 
-    this.page.on('console', (msg) => {
+    this._page.on('console', (msg) => {
       const type = msg.type();
       const text = msg.text();
 
@@ -104,7 +104,7 @@ export class StrudelController {
       }
     });
 
-    this.page.on('pageerror', (error) => {
+    this._page.on('pageerror', (error) => {
       this.consoleErrors.push(error.message);
       this.logger.error('Strudel page error:', error.message);
     });
@@ -117,10 +117,10 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async writePattern(pattern: string): Promise<string> {
-    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Use evaluate for faster direct manipulation
-    await this.page.evaluate((newPattern) => {
+    await this._page.evaluate((newPattern) => {
       const editor = document.querySelector('.cm-content') as HTMLElement;
       if (editor) {
         const view = (editor as any).__view;
@@ -145,7 +145,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async getCurrentPattern(): Promise<string> {
-    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Return cached value if still valid
     const now = Date.now();
@@ -153,7 +153,7 @@ export class StrudelController {
       return this.editorCache;
     }
 
-    const pattern = await this.page.evaluate(() => {
+    const pattern = await this._page.evaluate(() => {
       const editor = document.querySelector('.cm-content');
       return editor?.textContent || '';
     });
@@ -171,13 +171,13 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async play(): Promise<string> {
-    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Always use keyboard shortcut for speed
-    await this.page.keyboard.press('ControlOrMeta+Enter');
+    await this._page.keyboard.press('ControlOrMeta+Enter');
 
     // Reduced wait time
-    await this.page.waitForTimeout(100);
+    await this._page.waitForTimeout(100);
 
     this.isPlaying = true;
     return 'Playing';
@@ -189,10 +189,10 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async stop(): Promise<string> {
-    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Always use keyboard shortcut for speed
-    await this.page.keyboard.press('ControlOrMeta+Period');
+    await this._page.keyboard.press('ControlOrMeta+Period');
 
     this.isPlaying = false;
     return 'Stopped';
@@ -204,9 +204,31 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async analyzeAudio(): Promise<any> {
-    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
-    return await this.analyzer.getAnalysis(this.page);
+    return await this.analyzer.getAnalysis(this._page);
+  }
+
+  /**
+   * Detects the musical key of the currently playing audio
+   * @returns Key analysis including key, scale/mode, and confidence
+   * @throws {Error} When not initialized or analyzer not connected
+   */
+  async detectKey(): Promise<any> {
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
+
+    return await this.analyzer.detectKey(this._page);
+  }
+
+  /**
+   * Detects the tempo (BPM) of the currently playing audio
+   * @returns Tempo analysis including BPM, confidence, and detection method
+   * @throws {Error} When not initialized or analyzer not connected
+   */
+  async detectTempo(): Promise<any> {
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
+
+    return await this.analyzer.detectTempo(this._page);
   }
 
   /**
@@ -221,7 +243,7 @@ export class StrudelController {
       // Close browser properly
       await this.browser.close();
       this.browser = null;
-      this.page = null;
+      this._page = null;
     }
   }
 
@@ -272,7 +294,7 @@ export class StrudelController {
     pattern: string,
     options: { autoFix?: boolean; skipValidation?: boolean } = {}
   ): Promise<{ result: string; validation?: ValidationResult }> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     // Validate unless skipped
     if (!options.skipValidation) {
@@ -324,7 +346,7 @@ export class StrudelController {
    * @returns Result message
    */
   async appendPattern(code: string): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     const current = await this.getCurrentPattern();
     const newPattern = current + '\n' + code;
@@ -339,7 +361,7 @@ export class StrudelController {
    * @returns Result message
    */
   async insertAtLine(line: number, code: string): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     const current = await this.getCurrentPattern();
     const lines = current.split('\n');
@@ -359,7 +381,7 @@ export class StrudelController {
    * @returns Result message
    */
   async replaceInPattern(search: string, replace: string): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     const current = await this.getCurrentPattern();
     const newPattern = current.replace(new RegExp(search, 'g'), replace);
@@ -383,7 +405,7 @@ export class StrudelController {
     effects: number;
     functions: number;
   }> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     const pattern = await this.getCurrentPattern();
     const lines = pattern.split('\n');
@@ -408,7 +430,7 @@ export class StrudelController {
     isPlaying: boolean;
     stats: any;
   }> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     const pattern = await this.getCurrentPattern();
     const stats = await this.getPatternStats();
@@ -427,10 +449,10 @@ export class StrudelController {
    * @returns Execution result
    */
   async executeInStrudelContext(code: string): Promise<any> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     try {
-      return await this.page.evaluate((jsCode) => {
+      return await this._page.evaluate((jsCode) => {
         return eval(jsCode);
       }, code);
     } catch (error: any) {
@@ -475,7 +497,7 @@ export class StrudelController {
     errors: string[];
     warnings: string[];
   }> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this._page) throw new Error('Not initialized');
 
     // Clear previous errors
     this.clearConsoleMessages();
@@ -484,7 +506,7 @@ export class StrudelController {
     await this.writePattern(pattern);
 
     // Wait for potential errors to appear
-    await this.page.waitForTimeout(waitMs);
+    await this._page.waitForTimeout(waitMs);
 
     const errors = this.getConsoleErrors();
     const warnings = this.getConsoleWarnings();
@@ -494,6 +516,14 @@ export class StrudelController {
       errors,
       warnings
     };
+  }
+
+  /**
+   * Gets the current page instance
+   * @returns Page instance or null if not initialized
+   */
+  get page(): Page | null {
+    return this._page;
   }
 
   /**
@@ -513,7 +543,7 @@ export class StrudelController {
   }> {
     const diagnostics: any = {
       browserConnected: this.browser !== null,
-      pageLoaded: this.page !== null,
+      pageLoaded: this._page !== null,
       editorReady: false,
       audioConnected: false,
       cacheStatus: {
@@ -523,13 +553,13 @@ export class StrudelController {
       errorStats: this.errorRecovery.getErrorStats()
     };
 
-    if (this.page) {
+    if (this._page) {
       try {
-        diagnostics.editorReady = await this.page.evaluate(() => {
+        diagnostics.editorReady = await this._page.evaluate(() => {
           return document.querySelector('.cm-content') !== null;
         });
 
-        diagnostics.audioConnected = await this.page.evaluate(() => {
+        diagnostics.audioConnected = await this._page.evaluate(() => {
           return (window as any).strudelAudioAnalyzer?.isConnected || false;
         });
       } catch (error) {

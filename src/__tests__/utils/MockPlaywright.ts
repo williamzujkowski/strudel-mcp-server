@@ -5,6 +5,30 @@ export class MockPage implements Partial<Page> {
   private isPlayingState: boolean = false;
   private evaluateHandlers: Map<string, Function> = new Map();
   private url: string = '';
+  private eventHandlers: Map<string, Function[]> = new Map();
+
+  on(event: string, handler: Function): this {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, []);
+    }
+    this.eventHandlers.get(event)!.push(handler);
+    return this;
+  }
+
+  off(event: string, handler?: Function): this {
+    if (!handler) {
+      this.eventHandlers.delete(event);
+    } else {
+      const handlers = this.eventHandlers.get(event);
+      if (handlers) {
+        const index = handlers.indexOf(handler);
+        if (index !== -1) {
+          handlers.splice(index, 1);
+        }
+      }
+    }
+    return this;
+  }
 
   async goto(url: string, options?: any): Promise<any> {
     this.url = url;
@@ -59,25 +83,49 @@ export class MockPage implements Partial<Page> {
         return undefined;
       }
       if (fnString.includes('analyze()')) {
-        return {
-          connected: true,
-          timestamp: Date.now(),
-          features: {
-            average: 50,
-            peak: 100,
-            peakFrequency: 440,
-            centroid: 250,
-            bass: 60,
-            lowMid: 50,
-            mid: 40,
-            highMid: 30,
-            treble: 20,
-            isPlaying: this.isPlayingState,
-            isSilent: !this.isPlayingState,
-            bassToTrebleRatio: '3.00',
-            brightness: 'balanced'
-          }
-        };
+        // Return different values based on playing state
+        if (this.isPlayingState) {
+          return {
+            connected: true,
+            timestamp: Date.now(),
+            features: {
+              average: 50,
+              peak: 100,
+              peakFrequency: 440,
+              centroid: 250,
+              bass: 60,
+              lowMid: 50,
+              mid: 40,
+              highMid: 30,
+              treble: 20,
+              isPlaying: true,
+              isSilent: false,
+              bassToTrebleRatio: '3.00',
+              brightness: 'balanced'
+            }
+          };
+        } else {
+          // Silent state
+          return {
+            connected: true,
+            timestamp: Date.now(),
+            features: {
+              average: 0,
+              peak: 0,
+              peakFrequency: 0,
+              centroid: 0,
+              bass: 0,
+              lowMid: 0,
+              mid: 0,
+              highMid: 0,
+              treble: 0,
+              isPlaying: false,
+              isSilent: true,
+              bassToTrebleRatio: 'N/A',
+              brightness: 'dark'
+            }
+          };
+        }
       }
     }
 

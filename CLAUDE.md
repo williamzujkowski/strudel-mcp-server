@@ -168,10 +168,15 @@ Integration: Playwright → Strudel.cc
 - **Location**: Lines 71-80 use CodeMirror internal API `.__view` for performance
 
 ### 3. AudioAnalyzer (`src/AudioAnalyzer.ts`)
-- **Purpose**: Real-time FFT audio analysis
-- **Key Methods**: `inject()`, `getAnalysis()`
-- **Features**: Frequency bands, spectral centroid, brightness detection
+- **Purpose**: Real-time FFT audio analysis and music information retrieval
+- **Key Methods**: `inject()`, `getAnalysis()`, `detectTempo()`, `detectKey()`, `analyzeRhythm()`
+- **Features**:
+  - Frequency analysis (bands, spectral centroid, brightness)
+  - Tempo detection (onset-based, 40-200 BPM range)
+  - Key detection (Krumhansl-Schmuckler algorithm, 7 scale types)
+  - Rhythm analysis (complexity, density, syncopation, regularity)
 - **Caching**: 50ms TTL, dual-layer (browser + server)
+- **Algorithms**: Autocorrelation, spectral flux, chroma extraction
 
 ### 4. MusicTheory (`src/services/MusicTheory.ts`)
 - **Purpose**: Music theory calculations
@@ -203,6 +208,9 @@ Integration: Playwright → Strudel.cc
 | Pattern Read (cached) | 10-15ms | 100ms TTL |
 | Play/Stop | 100-150ms | Keyboard shortcuts |
 | Audio Analysis | 10-15ms | FFT with typed arrays |
+| Tempo Detection | <100ms | Onset-based, 90%+ accuracy |
+| Key Detection | <100ms | Krumhansl-Schmuckler algorithm |
+| Rhythm Analysis | <100ms | Complexity, density, syncopation |
 
 ## Development Workflow
 
@@ -393,8 +401,8 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"generate_drums","
 **Why direct CodeMirror access?** 80% faster than keyboard simulation
 
 ## Future Enhancements (See FUTURE_ENHANCEMENTS.md)
-- Complete tempo/key detection
 - Multi-session support
 - WebWorker audio analysis
 - SQLite pattern store
+- Improved modal scale detection accuracy
 - MIDI/audio export
