@@ -120,17 +120,26 @@ export class StrudelController {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Use evaluate for faster direct manipulation
-    await this._page.evaluate((newPattern) => {
-      const editor = document.querySelector('.cm-content') as HTMLElement;
-      if (editor) {
-        const view = (editor as any).__view;
-        if (view) {
-          view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: newPattern }
-          });
-        }
+    // CodeMirror 6 exposes the view via .cm-content element's cmView.view property
+    const success = await this._page.evaluate((newPattern) => {
+      const content = document.querySelector('.cm-content') as any;
+      const view = content?.cmView?.view;
+      if (view && view.dispatch && view.state) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: newPattern }
+        });
+        return true;
       }
+      return false;
     }, pattern);
+
+    // Fallback to keyboard method if evaluate failed
+    if (!success) {
+      await this._page.click('.cm-content');
+      await this._page.keyboard.press('ControlOrMeta+a');
+      await this._page.waitForTimeout(50);
+      await this._page.keyboard.type(pattern, { delay: 0 });
+    }
 
     // Update cache
     this.editorCache = pattern;
