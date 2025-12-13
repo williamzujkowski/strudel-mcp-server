@@ -199,6 +199,30 @@ export class StrudelController {
   }
 
   /**
+   * Waits for audio analyzer to connect
+   * @param timeoutMs - Maximum time to wait (default 5000ms)
+   * @returns True if connected, false if timeout
+   */
+  async waitForAudioConnection(timeoutMs: number = 5000): Promise<boolean> {
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
+
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeoutMs) {
+      const isConnected = await this._page.evaluate(() => {
+        return (window as any).strudelAudioAnalyzer?.isConnected || false;
+      });
+
+      if (isConnected) {
+        return true;
+      }
+
+      await this._page.waitForTimeout(100);
+    }
+
+    return false;
+  }
+
+  /**
    * Analyzes the current audio output
    * @returns Audio analysis data including frequency features
    * @throws {Error} When not initialized
