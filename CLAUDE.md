@@ -68,6 +68,88 @@ code review.
 - Mention known issues and limitations upfront
 - Welcome contributions but don't claim the project is perfect
 
+## Context and Efficiency Guidelines
+
+**Core Rule:** Context is a finite resource. Be efficient, direct, and avoid waste.
+
+### Context Management Principles
+
+1. **Track Token Usage**
+   - Monitor token consumption throughout sessions
+   - Warning threshold: 150K/200K tokens (75%)
+   - Critical threshold: 180K/200K tokens (90%)
+   - Use `/compact` when approaching limits
+
+2. **Efficient Communication**
+   - No verbose explanations when brief answers suffice
+   - Don't repeat information already stated
+   - Use references ("see line 42") instead of quoting code blocks
+   - Summarize instead of listing when appropriate
+
+3. **Tool Call Optimization**
+   - Read files once, not repeatedly
+   - Use parallel tool calls when operations are independent
+   - Cache file contents mentally for the conversation
+   - Use `git diff` not full file reads for checking changes
+
+4. **State Awareness**
+   - Before taking action, check current state (git status, gh issue list)
+   - Don't assume - verify with minimal commands
+   - Mark completed work immediately to avoid duplication
+   - Track work state with TodoWrite for multi-step tasks
+
+5. **Session Hygiene**
+   - Start sessions by checking: git status, open issues, recent commits, CI status
+   - Close sessions by: committing work, closing issues, verifying CI, cleaning todos
+   - Don't create intermediate planning files (use GitHub Issues)
+   - Commit frequently to avoid large context-heavy diffs
+
+### Anti-Patterns (Avoid These)
+
+❌ **Verbose Explanations**
+```
+I'm going to read the file to understand its current structure, then
+I'll analyze the content to determine where the best location would be
+to insert the new section, and then I'll carefully craft the edit...
+```
+
+✅ **Direct Action**
+```
+Adding context guidelines to CLAUDE.md after line 70.
+```
+
+❌ **Repeated File Reads**
+```
+[reads file] ... [makes edit] ... [reads file again] ... [makes another edit]
+```
+
+✅ **Single Read, Multiple Edits**
+```
+[reads file once] ... [makes all necessary edits in sequence]
+```
+
+❌ **Unnecessary Verification**
+```
+[runs test] ... [reads test output file] ... [runs test again] ... [checks git status]
+```
+
+✅ **Trust and Verify Once**
+```
+[runs test] ... [checks CI workflow] ... done
+```
+
+### Context Budget Guidelines
+
+| Session Phase | Context Budget | Actions |
+|---------------|----------------|---------|
+| Startup | 10-20K tokens | Git status, issue list, recent commits, CI status |
+| Planning | 20-40K tokens | Create todos, read key files, design approach |
+| Implementation | 40-150K tokens | Code changes, tests, commits |
+| Verification | 150-180K tokens | CI monitoring, issue closing, cleanup |
+| Wrap-up | 180-200K tokens | Final summary, compact if needed |
+
+**If exceeding budget:** Stop, commit work, close completed issues, `/compact`, continue in fresh session.
+
 ## Project Purpose
 This is an **open source, actively developed** MCP server enabling AI agents to generate music via Strudel.cc using browser automation.
 
