@@ -52,6 +52,11 @@ describe('EnhancedMCPServerFixed', () => {
         confidence: 0.85,
         alternatives: []
       }),
+      detectTempo: jest.fn().mockResolvedValue({
+        bpm: 120,
+        confidence: 0.85,
+        method: 'autocorrelation'
+      }),
       analyzer: {
         detectTempo: jest.fn().mockResolvedValue({
           bpm: 120,
@@ -160,11 +165,11 @@ describe('EnhancedMCPServerFixed', () => {
         expect(undoResult).toBe('Undone');
       });
 
-      test('should work without initialization for generation', async () => {
+      test('should require initialization for write', async () => {
         const uninitServer = new EnhancedMCPServerFixed();
         const result = await (uninitServer as any).executeTool('write', { pattern: 's("bd*4")' });
 
-        expect(result).toContain('Pattern generated');
+        expect(result).toContain('not initialized');
       });
     });
 
@@ -709,10 +714,20 @@ describe('EnhancedMCPServerFixed', () => {
         expect(result.bpm).toBe(120);
         expect(result.confidence).toBe(0.85);
         expect(result.method).toBe('autocorrelation');
+        expect(result.message).toContain('120 BPM');
       });
 
       test('should handle no tempo detected', async () => {
-        mockController.analyzer.detectTempo.mockResolvedValue({ bpm: 0, confidence: 0 });
+        mockController.detectTempo.mockResolvedValue({ bpm: 0, confidence: 0 });
+
+        const result = await (server as any).executeTool('detect_tempo', {});
+
+        expect(result.bpm).toBe(0);
+        expect(result.message).toContain('No tempo detected');
+      });
+
+      test('should handle null tempo result', async () => {
+        mockController.detectTempo.mockResolvedValue(null);
 
         const result = await (server as any).executeTool('detect_tempo', {});
 
@@ -721,12 +736,19 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should handle detection error', async () => {
-        mockController.analyzer.detectTempo.mockRejectedValue(new Error('Detection failed'));
+        mockController.detectTempo.mockRejectedValue(new Error('Detection failed'));
 
         const result = await (server as any).executeTool('detect_tempo', {});
 
         expect(result.bpm).toBe(0);
         expect(result.error).toContain('Detection failed');
+      });
+
+      test('should require initialization', async () => {
+        const uninitServer = new EnhancedMCPServerFixed();
+        const result = await (uninitServer as any).executeTool('detect_tempo', {});
+
+        expect(result).toContain('not initialized');
       });
     });
 
