@@ -58,3 +58,19 @@ project_plan.md
 
 # Local Claude config (user-specific)
 .claude.json
+
+# Test output files (ephemeral - regenerate with npm test)
+TEST_REPORT.txt
+TEST_SUMMARY.md
+test-output.log
+test_report.*
+
+# Development reports (ephemeral - belongs in git history or issues)
+TDD_*.md
+SWARM_*.md
+OPTIMIZATION_*.md
+PERFORMANCE_GUIDE.md
+*_COORDINATION_REPORT.md
+
+# Future enhancements belong in GitHub Issues
+FUTURE_ENHANCEMENTS.md
