@@ -117,7 +117,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async writePattern(pattern: string): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Use evaluate for faster direct manipulation
     await this.page.evaluate((newPattern) => {
@@ -145,7 +145,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async getCurrentPattern(): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Return cached value if still valid
     const now = Date.now();
@@ -171,7 +171,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async play(): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Always use keyboard shortcut for speed
     await this.page.keyboard.press('ControlOrMeta+Enter');
@@ -189,7 +189,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async stop(): Promise<string> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
 
     // Always use keyboard shortcut for speed
     await this.page.keyboard.press('ControlOrMeta+Period');
@@ -204,7 +204,7 @@ export class StrudelController {
    * @throws {Error} When not initialized
    */
   async analyzeAudio(): Promise<any> {
-    if (!this.page) throw new Error('Not initialized');
+    if (!this.page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.getAnalysis(this.page);
   }
