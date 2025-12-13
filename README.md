@@ -51,6 +51,20 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 
 **Not Production-Ready:** This is experimental software under active development. Use for exploration and experimentation. Expect breaking changes, bugs, and incomplete features. See [CONTRIBUTING.md](CONTRIBUTING.md) to help improve it.
 
+### 🎼 Example Patterns
+
+Explore 14 curated example patterns across 7 genres in [`patterns/examples/`](patterns/examples/):
+
+- **Techno**: Hard techno, minimal techno
+- **House**: Deep house, tech house
+- **Drum & Bass**: Liquid, neurofunk
+- **Ambient**: Dark ambient, drone
+- **Trap**: Modern trap, cloud trap
+- **Jungle**: Classic jungle, ragga jungle
+- **Jazz**: Bebop, modal jazz
+
+Each example includes pattern code, BPM, key, and description. See [`patterns/examples/README.md`](patterns/examples/README.md) for details.
+
 ## 📦 Installation
 
 ### From npm

@@ -1,0 +1,13 @@
+{
+  "name": "ragga-jungle",
+  "genre": "jungle",
+  "pattern": "// jungle pattern in D at 170 BPM\nsetcpm(170)\n\nstack(\n  // Drums\n  s(\"bd ~ [~ bd] bd ~ [bd bd] bd ~, ~ cp ~ [~ cp] cp ~, hh*32\").fast(2),\n  \n  // Bass\n  note(\"D2 D2 D2 D2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"D\" \"A\" \"Bm\" \"G\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"a#3 d4 c3 f4 g5 f3 a#5 a5\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "bpm": 170,
+  "key": "D",
+  "description": "Ragga jungle with reggae influence",
+  "tags": [
+    "jungle",
+    "ragga jungle"
+  ],
+  "timestamp": "2025-12-13T04:17:24.261Z"
+}

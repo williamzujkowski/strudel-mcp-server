@@ -1,0 +1,13 @@
+{
+  "name": "cloud-trap",
+  "genre": "trap",
+  "pattern": "// trap pattern in B at 135 BPM\nsetcpm(135)\n\nstack(\n  // Drums\n  s(\"bd [bd bd] ~ bd, ~ cp ~ cp, hh*16\").swing(0.2),\n  \n  // Bass\n  note(\"B2 B2 B2 B2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"B\" \"F#\" \"G#m\" \"E\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"d5 e5 f#5 e3 e3 f#3 g5 f#3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "bpm": 135,
+  "key": "B",
+  "description": "Cloud trap with ethereal atmosphere",
+  "tags": [
+    "trap",
+    "cloud trap"
+  ],
+  "timestamp": "2025-12-13T04:17:24.256Z"
+}

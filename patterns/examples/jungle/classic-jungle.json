@@ -1,0 +1,13 @@
+{
+  "name": "classic-jungle",
+  "genre": "jungle",
+  "pattern": "// jungle pattern in G at 165 BPM\nsetcpm(165)\n\nstack(\n  // Drums\n  s(\"bd ~ [~ bd] bd ~ [bd bd] bd ~, ~ cp ~ [~ cp] cp ~, hh*32\").fast(2),\n  \n  // Bass\n  note(\"G2 G2 G2 G2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"G\" \"D\" \"Em\" \"C\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"g5 d#5 a#3 d#3 f3 g3 f3 d#3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "bpm": 165,
+  "key": "G",
+  "description": "Classic jungle with chopped breaks",
+  "tags": [
+    "jungle",
+    "classic jungle"
+  ],
+  "timestamp": "2025-12-13T04:17:24.259Z"
+}
