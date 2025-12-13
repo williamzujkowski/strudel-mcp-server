@@ -487,6 +487,9 @@ describe('E2E Browser Integration Tests', () => {
       // Make page operations fail after browser close
       mockPage.evaluate = jest.fn().mockRejectedValue(new Error('Browser closed'));
 
+      // Invalidate cache to force a fresh read
+      controller.invalidateCache();
+
       // Subsequent operations should fail gracefully
       await expect(controller.getCurrentPattern()).rejects.toThrow();
     }, TEST_TIMEOUT);
