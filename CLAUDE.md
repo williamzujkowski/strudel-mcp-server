@@ -73,6 +73,72 @@ This is an **open source, actively developed** MCP server enabling AI agents to 
 
 **Current State:** Functional but experimental. 52% test coverage. Known issues exist (see GitHub Issues). Contributions welcome.
 
+## GitHub Issues Workflow
+
+**Core Rule:** GitHub Issues are the single source of truth for all work tracking. Planning documents in the repository will be rejected.
+
+### When to Create Issues
+
+**REQUIRED (create issue first):**
+- New features (>50 LOC)
+- Architecture changes
+- New dependencies
+- Breaking changes
+- Multi-file refactors
+- Performance optimizations
+- Security fixes
+
+**OPTIONAL (direct commit OK):**
+- Typo fixes (<10 LOC)
+- Comment improvements
+- Single-function bug fixes (<20 LOC)
+- Test additions (no code changes)
+
+### Issue Labels
+
+**Category** (required): `bug`, `feature`, `enhancement`, `testing`, `docs`, `refactor`, `performance`, `security`
+**Priority** (required): `critical`, `high`, `medium`, `low`
+
+### Issue Template
+
+Every issue must include:
+- Clear description
+- Component affected
+- Acceptance criteria (checkboxes)
+- Testing requirements
+- Workflow monitoring step
+
+### Pre-Commit Check
+
+Before closing ANY issue:
+```bash
+# Check for planning docs
+git status --short | grep -E "(TDD_|PLANNING_|FUTURE_|OPTIMIZATION_|.*_REPORT\.md)"
+# If found → DELETE or convert to issues
+
+# Create follow-on issues
+gh issue create --title "Follow-up: ..." --label "enhancement,medium"
+
+# Close with verification
+gh issue close <number> --comment "✅ Tests pass, build succeeds, no planning docs"
+```
+
+### Forbidden Files
+
+**NEVER commit:** `TDD_*.md`, `PLANNING_*.md`, `FUTURE_*.md`, `OPTIMIZATION_*.md`, `*_REPORT.md`, `*_GUIDE.md`, `*_PLAN.md`
+
+Use GitHub Issues instead. Planning documents clutter the repo and become stale immediately.
+
+### Commit Message Format
+
+Reference issues in commits:
+```bash
+git commit -m "feat: Add tempo detection (#123)
+
+Implements FFT-based BPM detection.
+Closes #123"
+```
+
 ## Core Architecture
 
 ```
