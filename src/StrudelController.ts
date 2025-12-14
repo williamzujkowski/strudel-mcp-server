@@ -257,6 +257,12 @@ export class StrudelController {
 
   /**
    * Cleans up browser resources and closes the connection
+   * @returns Promise that resolves when cleanup is complete
+   * @example
+   * const controller = new StrudelController();
+   * await controller.initialize();
+   * // ... use controller ...
+   * await controller.cleanup();
    */
   async cleanup() {
     if (this.browser) {
@@ -273,6 +279,10 @@ export class StrudelController {
 
   /**
    * Invalidates the editor content cache
+   * Forces next getCurrentPattern() call to fetch fresh content from browser
+   * @example
+   * controller.invalidateCache();
+   * const pattern = await controller.getCurrentPattern(); // Fetches from browser
    */
   invalidateCache() {
     this.editorCache = '';

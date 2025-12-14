@@ -172,6 +172,15 @@ export class MusicTheory {
       .join(' ');
   }
 
+  /**
+   * Extracts individual notes from a chord name
+   * Parses chord symbols and returns note names with octave numbers
+   * @param chord - Chord name to parse (e.g., 'Cmaj7', 'Am', 'G7')
+   * @returns Array of note names with octave numbers (e.g., ['c3', 'e3', 'g3'])
+   * @example
+   * const notes = this.getChordNotes('Cmaj7');
+   * // Returns: ['c3', 'e3', 'g3', 'b3']
+   */
   private getChordNotes(chord: string): string[] {
     // Simplified chord parsing - would need more sophisticated implementation
     const root = chord.replace(/[^A-G#]/g, '');
