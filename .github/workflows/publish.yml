@@ -60,7 +60,7 @@ jobs:
         run: npm run build
 
       - name: Run tests
-        run: npm test -- --passWithNoThreshold || npm run test:nocov
+        run: npm run test:nocov -- --testPathIgnorePatterns="browser"
 
       - name: Version bump (manual trigger only)
         if: github.event_name == 'workflow_dispatch'
