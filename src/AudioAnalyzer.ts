@@ -3,11 +3,12 @@ import {
   TempoAnalysis,
   KeyAnalysis,
   RhythmAnalysis,
-  AdvancedAudioAnalysis
+  AdvancedAudioAnalysis,
+  AudioAnalysisResult
 } from './types/AudioAnalysis.js';
 
 export class AudioAnalyzer {
-  private _analysisCache: any = null;
+  private _analysisCache: AudioAnalysisResult | null = null;
   private _cacheTimestamp: number = 0;
   private readonly ANALYSIS_CACHE_TTL = 50; // milliseconds
 
@@ -43,7 +44,12 @@ export class AudioAnalyzer {
         analyser: null as AnalyserNode | null,
         dataArray: null as Uint8Array | null,
         isConnected: false,
-        lastAnalysis: null as any,
+        lastAnalysis: null as {
+          connected: boolean;
+          timestamp?: number;
+          features?: any;
+          error?: string;
+        } | null,
         lastAnalysisTime: 0,
 
         connect() {
@@ -170,7 +176,7 @@ export class AudioAnalyzer {
    * @param page - Playwright page instance to analyze
    * @returns Audio analysis features including frequency bands and characteristics
    */
-  async getAnalysis(page: Page): Promise<any> {
+  async getAnalysis(page: Page): Promise<AudioAnalysisResult> {
     // Client-side caching with local fallback
     const now = Date.now();
     if (this._analysisCache && (now - this._cacheTimestamp) < this.ANALYSIS_CACHE_TTL) {

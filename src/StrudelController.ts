@@ -3,6 +3,13 @@ import { AudioAnalyzer } from './AudioAnalyzer.js';
 import { PatternValidator, ValidationResult } from './utils/PatternValidator.js';
 import { ErrorRecovery } from './utils/ErrorRecovery.js';
 import { Logger } from './utils/Logger.js';
+import {
+  AudioAnalysisResult,
+  KeyAnalysis,
+  TempoAnalysis,
+  PatternStats,
+  BrowserDiagnostics
+} from './types/AudioAnalysis.js';
 
 export class StrudelController {
   private browser: Browser | null = null;
@@ -227,7 +234,7 @@ export class StrudelController {
    * @returns Audio analysis data including frequency features
    * @throws {Error} When not initialized
    */
-  async analyzeAudio(): Promise<any> {
+  async analyzeAudio(): Promise<AudioAnalysisResult> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.getAnalysis(this._page);
@@ -238,7 +245,7 @@ export class StrudelController {
    * @returns Key analysis including key, scale/mode, and confidence
    * @throws {Error} When not initialized or analyzer not connected
    */
-  async detectKey(): Promise<any> {
+  async detectKey(): Promise<KeyAnalysis | null> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.detectKey(this._page);
@@ -249,7 +256,7 @@ export class StrudelController {
    * @returns Tempo analysis including BPM, confidence, and detection method
    * @throws {Error} When not initialized or analyzer not connected
    */
-  async detectTempo(): Promise<any> {
+  async detectTempo(): Promise<TempoAnalysis | null> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.detectTempo(this._page);
@@ -452,14 +459,7 @@ export class StrudelController {
    * Gets pattern statistics
    * @returns Pattern statistics
    */
-  async getPatternStats(): Promise<{
-    lines: number;
-    chars: number;
-    sounds: number;
-    notes: number;
-    effects: number;
-    functions: number;
-  }> {
+  async getPatternStats(): Promise<PatternStats> {
     if (!this._page) {
       throw new Error('Browser not initialized. Run init tool first.');
     }
@@ -485,7 +485,7 @@ export class StrudelController {
     pattern: string;
     timestamp: string;
     isPlaying: boolean;
-    stats: any;
+    stats: PatternStats;
   }> {
     if (!this._page) {
       throw new Error('Browser not initialized. Run init tool first.');
@@ -611,18 +611,8 @@ export class StrudelController {
    * Gets detailed browser diagnostics
    * @returns Diagnostic information
    */
-  async getDiagnostics(): Promise<{
-    browserConnected: boolean;
-    pageLoaded: boolean;
-    editorReady: boolean;
-    audioConnected: boolean;
-    cacheStatus: {
-      hasCache: boolean;
-      cacheAge: number;
-    };
-    errorStats: any;
-  }> {
-    const diagnostics: any = {
+  async getDiagnostics(): Promise<BrowserDiagnostics> {
+    const diagnostics: BrowserDiagnostics = {
       browserConnected: this.browser !== null,
       pageLoaded: this._page !== null,
       editorReady: false,
