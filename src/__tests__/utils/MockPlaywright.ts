@@ -130,15 +130,25 @@ export class MockPage implements Partial<Page> {
     }
 
     if (fnString.includes('.cm-content')) {
+      // Handle reading with CodeMirror API (view.state.doc.toString())
+      if (fnString.includes('view.state.doc.toString') || fnString.includes('doc.toString')) {
+        return this.content;
+      }
+      // Legacy textContent support
       if (fnString.includes('textContent')) {
         return this.content;
       }
+      // Handle writing with CodeMirror dispatch
       if (fnString.includes('dispatch')) {
         const newContent = args[0];
         if (typeof newContent === 'string') {
           this.content = newContent;
         }
-        return undefined;
+        return true; // Return success indicator
+      }
+      // Handle querySelector returning element
+      if (fnString.includes('querySelector')) {
+        return true; // Element exists
       }
     }
 

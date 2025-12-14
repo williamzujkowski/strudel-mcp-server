@@ -126,8 +126,11 @@ export class StrudelController {
   async writePattern(pattern: string): Promise<string> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
+    // Invalidate cache before write to prevent stale reads
+    this.invalidateCache();
+
     // Use evaluate for faster direct manipulation
-    await this._page.evaluate((newPattern) => {
+    const success = await this._page.evaluate((newPattern) => {
       const editor = document.querySelector('.cm-content') as HTMLElement;
       if (editor) {
         const view = (editor as any).__view;
@@ -135,11 +138,17 @@ export class StrudelController {
           view.dispatch({
             changes: { from: 0, to: view.state.doc.length, insert: newPattern }
           });
+          return true;
         }
       }
+      return false;
     }, pattern);
 
-    // Update cache
+    if (!success) {
+      throw new Error('Failed to write pattern - editor not found or view unavailable');
+    }
+
+    // Update cache after successful write
     this.editorCache = pattern;
     this.cacheTimestamp = Date.now();
 
@@ -161,8 +170,14 @@ export class StrudelController {
     }
 
     const pattern = await this._page.evaluate(() => {
-      const editor = document.querySelector('.cm-content');
-      return editor?.textContent || '';
+      const editor = document.querySelector('.cm-content') as HTMLElement;
+      if (editor) {
+        const view = (editor as any).__view;
+        if (view && view.state && view.state.doc) {
+          return view.state.doc.toString();
+        }
+      }
+      return '';
     });
 
     // Update cache
