@@ -48,6 +48,6 @@ export default {
     '/coverage/'
   ],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
-  collectCoverage: true,
+  collectCoverage: false,  // Enable via CLI with --coverage
   maxWorkers: '50%'
 };

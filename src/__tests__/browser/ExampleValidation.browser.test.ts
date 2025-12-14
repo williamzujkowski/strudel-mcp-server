@@ -2,12 +2,24 @@
  * Real browser validation tests for example patterns
  * These tests use actual Playwright browser automation against strudel.cc
  * Run with: HEADLESS=true npm test -- ExampleValidation.browser
+ *
+ * NOTE: These tests are skipped when running with coverage because Jest's
+ * coverage instrumentation injects variables that don't exist in the browser
+ * context when code runs inside page.evaluate().
  */
 import { StrudelController } from '../../StrudelController';
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe('Browser Validation: Example Patterns', () => {
+// Skip browser tests when running with coverage to avoid instrumentation conflicts
+// Jest injects coverage variables like cov_* which don't exist in browser context
+const isRunningCoverage = process.env.COVERAGE === 'true' ||
+                          process.env.npm_lifecycle_event?.includes('coverage') ||
+                          process.argv.some(arg => arg.includes('--coverage')) ||
+                          typeof (global as any).__coverage__ !== 'undefined';
+const describeOrSkip = isRunningCoverage ? describe.skip : describe;
+
+describeOrSkip('Browser Validation: Example Patterns', () => {
   let controller: StrudelController;
   const examplesDir = path.join(__dirname, '../../../patterns/examples');
   const isCI = process.env.CI === 'true';
