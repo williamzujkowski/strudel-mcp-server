@@ -623,6 +623,68 @@ export class StrudelController {
   }
 
   /**
+   * Brings the browser window to the foreground
+   * @returns Success message
+   * @throws {Error} When browser not initialized
+   */
+  async showBrowser(): Promise<string> {
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
+
+    try {
+      await this._page.bringToFront();
+      return 'Browser window brought to foreground';
+    } catch (error: any) {
+      this.logger.error('Failed to show browser', error);
+      throw new Error(`Failed to show browser: ${error.message}`);
+    }
+  }
+
+  /**
+   * Takes a screenshot of the current browser state
+   * @param filename - Optional filename for the screenshot
+   * @returns Path to saved screenshot or base64 data
+   * @throws {Error} When browser not initialized
+   */
+  async takeScreenshot(filename?: string): Promise<string> {
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
+
+    try {
+      const path = filename || `strudel-screenshot-${Date.now()}.png`;
+      await this._page.screenshot({ path, fullPage: false });
+      return `Screenshot saved to ${path}`;
+    } catch (error: any) {
+      this.logger.error('Failed to take screenshot', error);
+      throw new Error(`Failed to take screenshot: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets current browser and playback status
+   * @returns Status object with initialization and playback state
+   */
+  getStatus(): {
+    initialized: boolean;
+    playing: boolean;
+    patternLength: number;
+    cacheValid: boolean;
+    errorCount: number;
+    warningCount: number;
+  } {
+    return {
+      initialized: this._page !== null,
+      playing: this.isPlaying,
+      patternLength: this.editorCache.length,
+      cacheValid: this.editorCache.length > 0 && (Date.now() - this.cacheTimestamp) < this.CACHE_TTL,
+      errorCount: this.consoleErrors.length,
+      warningCount: this.consoleWarnings.length
+    };
+  }
+
+  /**
    * Gets detailed browser diagnostics
    * @returns Diagnostic information
    */

@@ -68,11 +68,13 @@ export class EnhancedMCPServerFixed {
       },
       {
         name: 'write',
-        description: 'Write pattern to editor',
+        description: 'Write pattern to editor with optional auto-play and validation',
         inputSchema: {
           type: 'object',
           properties: {
-            pattern: { type: 'string', description: 'Pattern code' }
+            pattern: { type: 'string', description: 'Pattern code' },
+            auto_play: { type: 'boolean', description: 'Start playback immediately after writing (default: false)' },
+            validate: { type: 'boolean', description: 'Validate pattern before writing (default: true)' }
           },
           required: ['pattern']
         }
@@ -199,13 +201,14 @@ export class EnhancedMCPServerFixed {
       },
       {
         name: 'generate_pattern',
-        description: 'Generate complete pattern from style',
+        description: 'Generate complete pattern from style with optional auto-play',
         inputSchema: {
           type: 'object',
           properties: {
             style: { type: 'string', description: 'Music style (techno/house/dnb/ambient/etc)' },
             key: { type: 'string', description: 'Musical key' },
-            bpm: { type: 'number', description: 'Tempo in BPM' }
+            bpm: { type: 'number', description: 'Tempo in BPM' },
+            auto_play: { type: 'boolean', description: 'Start playback immediately (default: false)' }
           },
           required: ['style']
         }
@@ -464,6 +467,56 @@ export class EnhancedMCPServerFixed {
         name: 'memory_usage',
         description: 'Get current memory usage statistics',
         inputSchema: { type: 'object', properties: {} }
+      },
+
+      // UX Tools - Browser Control (#37)
+      {
+        name: 'show_browser',
+        description: 'Bring browser window to foreground for visual feedback',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'screenshot',
+        description: 'Take a screenshot of the current Strudel editor state',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filename: { type: 'string', description: 'Optional filename for screenshot' }
+          }
+        }
+      },
+
+      // UX Tools - Status & Diagnostics (#39)
+      {
+        name: 'status',
+        description: 'Get current browser and playback status (quick state check)',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'diagnostics',
+        description: 'Get detailed browser diagnostics including cache, errors, and performance',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'show_errors',
+        description: 'Display captured console errors and warnings from Strudel',
+        inputSchema: { type: 'object', properties: {} }
+      },
+
+      // UX Tools - High-level Compose (#42)
+      {
+        name: 'compose',
+        description: 'Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            style: { type: 'string', description: 'Genre: techno, house, dnb, ambient, trap, jungle, jazz, experimental' },
+            tempo: { type: 'number', description: 'BPM (default: genre-appropriate)' },
+            key: { type: 'string', description: 'Musical key (default: C)' },
+            auto_play: { type: 'boolean', description: 'Start playback immediately (default: true)' }
+          },
+          required: ['style']
+        }
       }
     ];
   }
@@ -593,7 +646,35 @@ export class EnhancedMCPServerFixed {
       
       case 'write':
         InputValidator.validateStringLength(args.pattern, 'pattern', 10000, true);
-        return await this.writePatternSafe(args.pattern);
+
+        // Validate pattern if requested (default: true) - Issue #40
+        if (args.validate !== false && this.isInitialized && typeof this.controller.validatePattern === 'function') {
+          try {
+            const validation = await this.controller.validatePattern(args.pattern);
+            if (validation && !validation.valid) {
+              return {
+                success: false,
+                errors: validation.errors,
+                warnings: validation.warnings,
+                suggestions: validation.suggestions,
+                message: `Pattern validation failed: ${validation.errors.join('; ')}`
+              };
+            }
+          } catch (e) {
+            // Validation failed, but we can still try to write
+            this.logger.warn('Pattern validation threw error, continuing with write');
+          }
+        }
+
+        const writeResult = await this.writePatternSafe(args.pattern);
+
+        // Auto-play if requested - Issue #38
+        if (args.auto_play && this.isInitialized) {
+          await this.controller.play();
+          return `${writeResult}. Playing.`;
+        }
+
+        return writeResult;
 
       case 'append':
         InputValidator.validateStringLength(args.code, 'code', 10000, true);
@@ -642,6 +723,13 @@ export class EnhancedMCPServerFixed {
           args.bpm || 120
         );
         await this.writePatternSafe(generated);
+
+        // Auto-play if requested - Issue #38
+        if (args.auto_play && this.isInitialized) {
+          await this.controller.play();
+          return `Generated ${args.style} pattern. Playing.`;
+        }
+
         return `Generated ${args.style} pattern`;
       
       case 'generate_drums':
@@ -981,6 +1069,93 @@ export class EnhancedMCPServerFixed {
         const memory = this.perfMonitor.getMemoryUsage();
         return memory ? JSON.stringify(memory, null, 2) : 'Memory usage not available';
 
+      // UX Tools - Browser Control (#37)
+      case 'show_browser':
+        if (!this.isInitialized) {
+          return 'Browser not initialized. Run init first.';
+        }
+        return await this.controller.showBrowser();
+
+      case 'screenshot':
+        if (!this.isInitialized) {
+          return 'Browser not initialized. Run init first.';
+        }
+        return await this.controller.takeScreenshot(args?.filename);
+
+      // UX Tools - Status & Diagnostics (#39)
+      case 'status':
+        return this.controller.getStatus();
+
+      case 'diagnostics':
+        if (!this.isInitialized) {
+          return {
+            initialized: false,
+            message: 'Browser not initialized. Run init first for full diagnostics.'
+          };
+        }
+        return await this.controller.getDiagnostics();
+
+      case 'show_errors':
+        const errors = this.controller.getConsoleErrors();
+        const warnings = this.controller.getConsoleWarnings();
+
+        if (errors.length === 0 && warnings.length === 0) {
+          return 'No errors or warnings captured.';
+        }
+
+        let result = '';
+        if (errors.length > 0) {
+          result += `❌ Errors (${errors.length}):\n${errors.map(e => `  • ${e}`).join('\n')}\n`;
+        }
+        if (warnings.length > 0) {
+          result += `⚠️ Warnings (${warnings.length}):\n${warnings.map(w => `  • ${w}`).join('\n')}`;
+        }
+        return result.trim();
+
+      // UX Tools - High-level Compose (#42)
+      case 'compose':
+        InputValidator.validateStringLength(args.style, 'style', 100, false);
+        if (args.key) {
+          InputValidator.validateRootNote(args.key);
+        }
+        if (args.tempo !== undefined) {
+          InputValidator.validateBPM(args.tempo);
+        }
+
+        // Auto-initialize if needed
+        if (!this.isInitialized) {
+          await this.controller.initialize();
+          this.isInitialized = true;
+        }
+
+        // Generate pattern
+        const composedPattern = this.generator.generateCompletePattern(
+          args.style,
+          args.key || 'C',
+          args.tempo || this.getDefaultTempo(args.style)
+        );
+
+        // Write pattern
+        await this.controller.writePattern(composedPattern);
+
+        // Auto-play by default (unless explicitly set to false)
+        const shouldPlay = args.auto_play !== false;
+        if (shouldPlay) {
+          await this.controller.play();
+        }
+
+        return {
+          success: true,
+          pattern: composedPattern.substring(0, 200) + (composedPattern.length > 200 ? '...' : ''),
+          metadata: {
+            style: args.style,
+            bpm: args.tempo || this.getDefaultTempo(args.style),
+            key: args.key || 'C'
+          },
+          status: shouldPlay ? 'playing' : 'ready',
+          message: `Created ${args.style} pattern in ${args.key || 'C'}${shouldPlay ? ' - now playing' : ''}`
+        };
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -993,15 +1168,43 @@ export class EnhancedMCPServerFixed {
         'c': 0, 'c#': 1, 'd': 2, 'd#': 3, 'e': 4, 'f': 5,
         'f#': 6, 'g': 7, 'g#': 8, 'a': 9, 'a#': 10, 'b': 11
       };
-      
+
       const currentNote = note.toLowerCase();
       const noteValue = noteMap[currentNote] || 0;
       const newNoteValue = (noteValue + semitones + 12) % 12;
       const noteNames = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
       const newOctave = parseInt(octave) + Math.floor((noteValue + semitones) / 12);
-      
+
       return noteNames[newNoteValue] + newOctave;
     });
+  }
+
+  /**
+   * Gets the default tempo for a given music style
+   * @param style - Music style/genre
+   * @returns Default BPM for the style
+   */
+  private getDefaultTempo(style: string): number {
+    const tempoMap: Record<string, number> = {
+      'techno': 130,
+      'house': 125,
+      'dnb': 174,
+      'drum and bass': 174,
+      'ambient': 80,
+      'trap': 140,
+      'jungle': 160,
+      'jazz': 110,
+      'experimental': 120,
+      'dubstep': 140,
+      'trance': 138,
+      'breakbeat': 130,
+      'garage': 130,
+      'electro': 128,
+      'downtempo': 90,
+      'idm': 115
+    };
+
+    return tempoMap[style.toLowerCase()] || 120;
   }
 
   async run() {

@@ -69,6 +69,32 @@ describe('EnhancedMCPServerFixed', () => {
         errors: [],
         warnings: []
       }),
+      validatePattern: jest.fn().mockResolvedValue({
+        valid: true,
+        errors: [],
+        warnings: [],
+        suggestions: []
+      }),
+      showBrowser: jest.fn().mockResolvedValue('Browser window brought to foreground'),
+      takeScreenshot: jest.fn().mockResolvedValue('Screenshot saved to strudel-screenshot.png'),
+      getStatus: jest.fn().mockReturnValue({
+        initialized: true,
+        playing: false,
+        patternLength: 10,
+        cacheValid: true,
+        errorCount: 0,
+        warningCount: 0
+      }),
+      getDiagnostics: jest.fn().mockResolvedValue({
+        browserConnected: true,
+        pageLoaded: true,
+        editorReady: true,
+        audioConnected: false,
+        cacheStatus: { hasCache: true, cacheAge: 100 },
+        errorStats: {}
+      }),
+      getConsoleErrors: jest.fn().mockReturnValue([]),
+      getConsoleWarnings: jest.fn().mockReturnValue([]),
       page: {}
     } as any;
 
@@ -1070,6 +1096,196 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       expect(saveResult).toContain('Pattern saved');
+    });
+  });
+
+  // UX Tools Tests - Issue #37, #38, #39, #40, #42
+  describe('UX Tools', () => {
+    describe('Browser Control (#37)', () => {
+      test('show_browser should bring window to foreground', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('show_browser', {});
+        expect(result).toContain('foreground');
+        expect(mockController.showBrowser).toHaveBeenCalled();
+      });
+
+      test('show_browser should require initialization', async () => {
+        const result = await (server as any).executeTool('show_browser', {});
+        expect(result).toContain('not initialized');
+      });
+
+      test('screenshot should save browser state', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('screenshot', { filename: 'test.png' });
+        expect(result).toContain('Screenshot');
+        expect(mockController.takeScreenshot).toHaveBeenCalledWith('test.png');
+      });
+
+      test('screenshot should require initialization', async () => {
+        const result = await (server as any).executeTool('screenshot', {});
+        expect(result).toContain('not initialized');
+      });
+    });
+
+    describe('Status & Diagnostics (#39)', () => {
+      test('status should return current state', async () => {
+        const result = await (server as any).executeTool('status', {});
+        expect(result).toHaveProperty('initialized');
+        expect(result).toHaveProperty('playing');
+        expect(result).toHaveProperty('errorCount');
+      });
+
+      test('diagnostics should return detailed info when initialized', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('diagnostics', {});
+        expect(result).toHaveProperty('browserConnected');
+        expect(result).toHaveProperty('editorReady');
+        expect(result).toHaveProperty('cacheStatus');
+      });
+
+      test('diagnostics should indicate not initialized', async () => {
+        const result = await (server as any).executeTool('diagnostics', {});
+        expect(result.initialized).toBe(false);
+        expect(result.message).toContain('not initialized');
+      });
+
+      test('show_errors should display captured errors', async () => {
+        mockController.getConsoleErrors.mockReturnValue(['Error 1', 'Error 2']);
+        mockController.getConsoleWarnings.mockReturnValue(['Warning 1']);
+
+        const result = await (server as any).executeTool('show_errors', {});
+        expect(result).toContain('Errors');
+        expect(result).toContain('Error 1');
+        expect(result).toContain('Warning 1');
+      });
+
+      test('show_errors should indicate no errors when empty', async () => {
+        mockController.getConsoleErrors.mockReturnValue([]);
+        mockController.getConsoleWarnings.mockReturnValue([]);
+
+        const result = await (server as any).executeTool('show_errors', {});
+        expect(result).toContain('No errors');
+      });
+    });
+
+    describe('Auto-play (#38)', () => {
+      test('write with auto_play should start playback', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('write', {
+          pattern: 's("bd*4")',
+          auto_play: true
+        });
+        expect(result).toContain('Playing');
+        expect(mockController.play).toHaveBeenCalled();
+      });
+
+      test('write without auto_play should not start playback', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.play.mockClear();
+        const result = await (server as any).executeTool('write', {
+          pattern: 's("bd*4")',
+          auto_play: false
+        });
+        expect(result).not.toContain('Playing');
+        expect(mockController.play).not.toHaveBeenCalled();
+      });
+
+      test('generate_pattern with auto_play should start playback', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.play.mockClear();
+        const result = await (server as any).executeTool('generate_pattern', {
+          style: 'techno',
+          auto_play: true
+        });
+        expect(result).toContain('Playing');
+        expect(mockController.play).toHaveBeenCalled();
+      });
+    });
+
+    describe('Pattern Validation (#40)', () => {
+      test('write with validate=false should skip validation', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.validatePattern.mockClear();
+
+        await (server as any).executeTool('write', {
+          pattern: 's("bd*4")',
+          validate: false
+        });
+
+        expect(mockController.validatePattern).not.toHaveBeenCalled();
+      });
+
+      test('write should validate by default', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.validatePattern.mockClear();
+
+        await (server as any).executeTool('write', { pattern: 's("bd*4")' });
+
+        expect(mockController.validatePattern).toHaveBeenCalled();
+      });
+
+      test('write should return validation errors', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.validatePattern.mockResolvedValue({
+          valid: false,
+          errors: ['Syntax error'],
+          warnings: [],
+          suggestions: ['Check syntax']
+        });
+
+        const result = await (server as any).executeTool('write', { pattern: 'invalid{' });
+
+        expect(result.success).toBe(false);
+        expect(result.errors).toContain('Syntax error');
+      });
+    });
+
+    describe('Compose Workflow (#42)', () => {
+      test('compose should auto-initialize and generate pattern', async () => {
+        const result = await (server as any).executeTool('compose', {
+          style: 'techno'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.metadata.style).toBe('techno');
+        expect(result.status).toBe('playing');
+        expect(mockController.initialize).toHaveBeenCalled();
+        expect(mockController.writePattern).toHaveBeenCalled();
+        expect(mockController.play).toHaveBeenCalled();
+      });
+
+      test('compose should respect auto_play=false', async () => {
+        mockController.play.mockClear();
+        const result = await (server as any).executeTool('compose', {
+          style: 'ambient',
+          auto_play: false
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.status).toBe('ready');
+        expect(mockController.play).not.toHaveBeenCalled();
+      });
+
+      test('compose should use custom tempo and key', async () => {
+        const result = await (server as any).executeTool('compose', {
+          style: 'house',
+          tempo: 128,
+          key: 'A'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.metadata.bpm).toBe(128);
+        expect(result.metadata.key).toBe('A');
+      });
+
+      test('compose should use genre-appropriate default tempo', async () => {
+        const result = await (server as any).executeTool('compose', {
+          style: 'dnb'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.metadata.bpm).toBe(174); // DnB default
+      });
     });
   });
 });
