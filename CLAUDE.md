@@ -844,6 +844,113 @@ await controller.cleanup(); // Always cleanup
 **Why caching?** Strudel.cc interaction is slow (50-500ms), caching provides real-time UX
 **Why direct CodeMirror access?** 80% faster than keyboard simulation
 
+## UX Design Principles
+
+This MCP server bridges AI-powered music generation with live-coding workflows. Follow these UX principles when developing features.
+
+### Browser Window as Primary Interface
+
+The Strudel browser window is NOT a hidden implementation detail—it's the **primary interface** for music creation.
+
+**Key Principles:**
+1. **Keep Window Visible**: Default `headless: false` in config.json. Users should see their patterns.
+2. **Visual Feedback**: Pattern changes should be immediately visible in the browser editor.
+3. **Persistent Session**: Browser stays open throughout the session for manual tweaking.
+4. **Direct Interaction**: Users can edit patterns directly in the browser while using MCP tools.
+
+**Why This Matters:**
+- Live-coding environments (TidalCycles, Sonic Pi) keep editor windows always visible
+- Users need to see code as they iterate
+- Visual confirmation builds trust in the system
+- Manual tweaking is essential for creative workflow
+
+### Reduce Tool Call Friction
+
+Users expect immediate results. Minimize the number of tool calls for common workflows.
+
+**Current Workflow (Bad):**
+```
+init → generate_pattern → write → play → analyze  (5 calls)
+```
+
+**Target Workflow (Good):**
+```
+compose (1 call with auto_play: true)
+```
+
+**Guidelines:**
+- Add `auto_play` option to generation tools
+- Initialize browser automatically when needed
+- Combine related operations into single tools
+- Return rich responses with pattern + metadata + status
+
+### Surface Errors Early
+
+Pattern errors should be visible immediately, not discovered when audio fails to play.
+
+**Principles:**
+1. Validate patterns before writing (use `PatternValidator`)
+2. Include warnings in write responses
+3. Surface console errors from Strudel
+4. Provide actionable error messages with suggestions
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "pattern_length": 245,
+  "warnings": ["High gain (3.0) may cause distortion"],
+  "suggestions": ["Consider adding .room() for space"]
+}
+```
+
+### Expose System State
+
+Users should understand what the system is doing. Hidden state causes confusion.
+
+**Expose:**
+- Browser initialization status
+- Playback state (playing/stopped)
+- Cache status (valid/stale)
+- Error count and last error
+- Pattern history
+
+**Tools to Support This:**
+- `status` - Quick state check
+- `diagnostics` - Detailed system info
+- `list_history` - Browse pattern history
+
+### Live Coding Workflow Expectations
+
+Users coming from live-coding expect:
+
+| Expectation | Implementation |
+|-------------|---------------|
+| See code immediately | Non-headless browser, pattern visible in editor |
+| Hear changes instantly | Auto-play option, minimal latency |
+| Undo mistakes easily | Undo/redo tools with visible history |
+| Iterate rapidly | Single tool calls for common operations |
+| Save work | Pattern storage with tags and metadata |
+
+### Visual Feedback Checklist
+
+When implementing new features, ensure:
+- [ ] Operation result visible in browser window
+- [ ] Error messages are actionable
+- [ ] State changes are logged/observable
+- [ ] Performance doesn't block UI (async operations)
+- [ ] User can verify operation succeeded visually
+
+### Related Issues
+
+See GitHub issues for UX improvements:
+- #37: Keep browser window visible and persistent
+- #38: Add auto-play option for pattern writing
+- #39: Add browser state and diagnostics tools
+- #40: Surface pattern validation errors visually
+- #41: Add pattern history browsing
+- #42: Add high-level compose workflow
+
 ## Future Enhancements (See FUTURE_ENHANCEMENTS.md)
 - Multi-session support
 - WebWorker audio analysis
