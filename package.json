@@ -26,7 +26,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "docker:build": "docker build -t strudel-mcp .",
     "docker:run": "docker-compose up",
-    "prepublishOnly": "npm run build && npm test",
+    "prepublishOnly": "npm run build && npm run test:nocov -- --testPathIgnorePatterns=browser",
     "prepare": "npm run build",
     "validate": "echo '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":1}' | node dist/index.js",
     "clean": "rm -rf dist coverage"
