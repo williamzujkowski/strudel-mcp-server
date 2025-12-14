@@ -1,34 +1,48 @@
+# Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY src ./src
 
-# Install dependencies without running prepare hook
+# Copy only package files first (better layer caching)
+COPY package*.json ./
+
+# Install all dependencies (needed for build)
 RUN npm ci --ignore-scripts
 
-# Now build after source is available
+# Copy source and build
+COPY tsconfig.json ./
+COPY src ./src
 RUN npm run build
 
+# Prune dev dependencies to reduce size
+RUN npm prune --production && \
+    rm -rf ~/.npm /tmp/*
+
+# Stage 2: Runtime (smaller image)
 FROM node:20-alpine AS runtime
 
-RUN apk add --no-cache chromium
+# Install Chromium and cleanup in single layer
+RUN apk add --no-cache chromium && \
+    rm -rf /var/cache/apk/*
+
+# Chromium configuration
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
 ENV CHROMIUM_PATH=/usr/bin/chromium-browser
+ENV NODE_ENV=production
 
 WORKDIR /app
 
+# Copy only production dependencies and built code
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 
-# Create patterns directory (doesn't exist in repo)
+# Create patterns directory
 RUN mkdir -p patterns
 
-# Copy config if it exists (optional)
-COPY config.json ./ 2>/dev/null || echo '{"headless":true}' > config.json
+# Create default config for headless mode in container
+RUN echo '{"headless":true}' > config.json
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]

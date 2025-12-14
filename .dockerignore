@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build outputs (rebuilt in container)
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+src/__tests__
+coverage
+*.test.ts
+jest.config.js
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Development files
+.eslintrc.json
+.prettierrc
+tsconfig.json
+
+# Local config (may have different settings)
+config.json
+
+# Patterns (optional, user-generated)
+patterns
+
+# OS files
+.DS_Store
+Thumbs.db

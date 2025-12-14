@@ -1287,5 +1287,119 @@ describe('EnhancedMCPServerFixed', () => {
         expect(result.metadata.bpm).toBe(174); // DnB default
       });
     });
+
+    describe('Pattern History (#41)', () => {
+      test('list_history should return empty message when no history', async () => {
+        const newServer = new EnhancedMCPServerFixed();
+        const result = await (newServer as any).executeTool('list_history', {});
+
+        expect(result).toContain('No pattern history yet');
+      });
+
+      test('list_history should show pattern history after edits', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        // Make some edits to build history
+        await (server as any).executeTool('write', { pattern: 's("bd*4")' });
+        await (server as any).executeTool('write', { pattern: 's("hh*8")' });
+
+        const result = await (server as any).executeTool('list_history', {});
+
+        expect(result.count).toBeGreaterThan(0);
+        expect(result.entries).toBeDefined();
+        expect(result.entries.length).toBeGreaterThan(0);
+        expect(result.entries[0].id).toBeDefined();
+        expect(result.entries[0].preview).toBeDefined();
+        expect(result.entries[0].timestamp).toBeDefined();
+      });
+
+      test('list_history should respect limit parameter', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        // Make several edits
+        for (let i = 0; i < 5; i++) {
+          await (server as any).executeTool('write', { pattern: `s("bd*${i}")` });
+        }
+
+        const result = await (server as any).executeTool('list_history', { limit: 2 });
+
+        expect(result.entries.length).toBe(2);
+      });
+
+      test('restore_history should restore pattern by ID', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        // Make an edit to create history
+        await (server as any).executeTool('write', { pattern: 's("cp*2")' });
+
+        // Get the history
+        const history = await (server as any).executeTool('list_history', {});
+        const firstEntry = history.entries[history.entries.length - 1];
+
+        // Restore from history
+        const result = await (server as any).executeTool('restore_history', {
+          id: firstEntry.id
+        });
+
+        expect(result).toContain('Restored pattern from history');
+        expect(mockController.writePattern).toHaveBeenCalled();
+      });
+
+      test('restore_history should return error for invalid ID', async () => {
+        await (server as any).executeTool('init', {});
+
+        const result = await (server as any).executeTool('restore_history', {
+          id: 99999
+        });
+
+        expect(result).toContain('not found');
+      });
+
+      test('restore_history should require initialization', async () => {
+        const uninitServer = new EnhancedMCPServerFixed();
+        const result = await (uninitServer as any).executeTool('restore_history', {
+          id: 1
+        });
+
+        expect(result).toContain('not initialized');
+      });
+
+      test('compare_patterns should show diff between two patterns', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern
+          .mockResolvedValueOnce('s("bd*4")')
+          .mockResolvedValueOnce('s("hh*8")');
+
+        // Make edits to create history
+        await (server as any).executeTool('write', { pattern: 's("bd*4")' });
+        await (server as any).executeTool('write', { pattern: 's("hh*8")' });
+
+        // Get history IDs
+        const history = await (server as any).executeTool('list_history', {});
+        const id1 = history.entries[history.entries.length - 1].id;
+
+        // Compare with current
+        const result = await (server as any).executeTool('compare_patterns', {
+          id1: id1
+        });
+
+        expect(result.diff).toBeDefined();
+        expect(result.summary).toBeDefined();
+        expect(result.summary.charsDiff).toBeDefined();
+      });
+
+      test('compare_patterns should return error for invalid ID', async () => {
+        await (server as any).executeTool('init', {});
+
+        const result = await (server as any).executeTool('compare_patterns', {
+          id1: 99999
+        });
+
+        expect(result).toContain('not found');
+      });
+    });
   });
 });
