@@ -1,7 +1,7 @@
 {
   "name": "dark-ambient",
   "genre": "ambient",
-  "pattern": "// ambient pattern in C at 70 BPM\nsetcpm(70)\n\nstack(\n  // Drums\n  s(\"bd ~ ~ ~, ~ ~ ~ hh:8, ~ ~ oh:5 ~\").room(0.9).gain(0.5),\n  \n  // Bass\n  note(\"C1\").s(\"sine\").attack(2).release(4).gain(0.6),\n  \n  // Chords\n  note(\"C\" \"G\" \"Am\" \"F\").s(\"sawtooth\").attack(2).release(4).room(0.8).gain(0.6),\n  \n  // Melody\n  note(\"d#3 d3 f5 g4 f3 d#3 d#5 d3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// ambient pattern in C at 70 BPM\nsetcpm(70)\n\nstack(\n  // Drums\n  s(\"bd ~ ~ ~, ~ ~ ~ hh:8, ~ ~ oh:5 ~\").room(0.9).gain(0.5),\n  \n  // Bass\n  note(\"C1\").s(\"sine\").attack(2).release(4).gain(0.6),\n  \n  // Chords\n  note(\"C\" \"G\" \"Am\" \"F\").s(\"sawtooth\").attack(2).release(4).room(0.8).gain(0.6),\n  \n  // Melody\n  note(\"a#5 c4 d3 d#5 d4 d#4 g#3 a#5\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 70,
   "key": "C",
   "description": "Dark atmospheric ambient",
@@ -9,5 +9,5 @@
     "ambient",
     "dark ambient"
   ],
-  "timestamp": "2025-12-13T04:17:24.248Z"
+  "timestamp": "2025-12-13T04:36:07.654Z"
 }

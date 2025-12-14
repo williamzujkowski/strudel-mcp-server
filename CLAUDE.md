@@ -467,6 +467,368 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"generate_drums","
 - No eval/Function constructors
 - Check array bounds
 
+## Coding Standards
+
+Comprehensive development standards adapted from [williamzujkowski/standards](https://github.com/williamzujkowski/standards/blob/master/docs/standards/CODING_STANDARDS.md).
+
+### 1. Code Style and Formatting
+
+**TypeScript/JavaScript Standards:**
+- Follow Airbnb JavaScript Style Guide
+- Line length: 100 characters maximum
+- Indentation: 2 spaces
+- Use semicolons
+- Single quotes for strings
+
+**Naming Conventions:**
+- Classes: `PascalCase` (e.g., `StrudelController`, `AudioAnalyzer`)
+- Functions/methods: `camelCase` verbs (e.g., `analyzeAudio()`, `detectTempo()`)
+- Variables: `camelCase` nouns (e.g., `isPlaying`, `editorCache`)
+- Constants: `UPPER_SNAKE_CASE` (e.g., `CACHE_TTL`, `ONSET_THRESHOLD`)
+- Private members: underscore prefix `_page`, `_browser`
+- Types/Interfaces: `PascalCase` (e.g., `TempoAnalysis`, `ValidationResult`)
+
+**Automation:**
+- TypeScript compiler (`tsc`) enforces types
+- Prettier for formatting (configured in `.prettierrc`)
+- Pre-commit hooks validate build
+
+### 2. Documentation Standards
+
+**Required for All Public Methods:**
+```typescript
+/**
+ * Detects the tempo (BPM) of currently playing audio
+ * @param page - Playwright page instance
+ * @returns Tempo analysis with BPM, confidence, method
+ * @throws {Error} When audio analyzer not connected
+ * @example
+ * const tempo = await analyzer.detectTempo(page);
+ * console.log(`Detected ${tempo.bpm} BPM`);
+ */
+async detectTempo(page: Page): Promise<TempoAnalysis> {
+```
+
+**System Documentation:**
+- Architecture: See "Core Architecture" section in CLAUDE.md
+- API: Tool descriptions in EnhancedMCPServerFixed.ts
+- Deployment: README.md installation section
+- Examples: `patterns/examples/README.md`
+
+### 3. Error Handling
+
+**Error Message Standards:**
+- Be specific: "Browser not initialized. Run init tool first." not "Not initialized"
+- Include action: Tell user what to do
+- Add context: Include relevant parameters (BPM, filename, etc.)
+
+**Exception Handling:**
+```typescript
+// Good - specific, actionable
+if (!this._page) {
+  throw new Error('Browser not initialized. Run init tool first.');
+}
+
+// Good - preserve context
+try {
+  await riskyOperation();
+} catch (error: any) {
+  this.logger.error('Operation failed', { context, error });
+  throw new Error(`Operation failed: ${error.message}`);
+}
+
+// Bad - generic, unhelpful
+if (!this._page) throw new Error('Error');
+```
+
+**Error Recovery:**
+- Use `ErrorRecovery` class for retries (lines 17-335 in ErrorRecovery.ts)
+- Exponential backoff for browser operations
+- Circuit breakers for external resources (Strudel.cc)
+
+### 4. Security Best Practices
+
+**Input Validation:**
+```typescript
+// Always validate MCP tool inputs
+const bpm = args.bpm ?? 120;
+if (bpm < 20 || bpm > 300) {
+  throw new Error(`Invalid BPM: ${bpm}. Must be 20-300.`);
+}
+```
+
+**Pattern Safety:**
+```typescript
+// Prevent dangerous patterns
+if (pattern.match(/gain\s*\(\s*[3-9]|gain\s*\(\s*[1-9]\d/)) {
+  return { valid: false, errors: ['Dangerous gain level detected'] };
+}
+```
+
+**File Operations:**
+```typescript
+// Always sanitize filenames (PatternStore.ts:52)
+const sanitized = path.basename(filename);
+if (sanitized !== filename) {
+  throw new Error('Invalid filename - path traversal detected');
+}
+```
+
+**NIST Control Tagging:**
+When implementing security controls, tag with NIST 800-53r5:
+```typescript
+// @nist si-10 "Input validation"
+validatePatternInput(pattern: string): ValidationResult {
+  // Validate pattern syntax, dangerous constructs
+}
+
+// @nist ac-3 "Access enforcement"
+// @nist ac-6 "Least privilege"
+checkFileAccess(filePath: string): boolean {
+  // Ensure file is within allowed directory
+}
+```
+
+### 5. Performance Optimization
+
+**Targets (from Performance Characteristics section):**
+- Pattern write: <80ms
+- Pattern read (cached): <15ms
+- Audio analysis: <15ms (FFT)
+- Tempo detection: <100ms
+- Key detection: <100ms
+
+**Caching Strategy:**
+```typescript
+// Short TTL for real-time data
+private readonly ANALYSIS_CACHE_TTL = 50; // ms
+
+// Longer TTL for static data
+private readonly LIST_CACHE_TTL = 5000; // ms
+
+// Check cache before expensive operation
+if (this.editorCache && (now - this.cacheTimestamp) < this.CACHE_TTL) {
+  return this.editorCache;
+}
+```
+
+**Resource Optimization:**
+- Block unnecessary resources (images, fonts) in Playwright (StrudelController.ts:61-68)
+- Use `Promise.all` for parallel I/O (PatternStore.ts:95-109)
+- Direct CodeMirror API > keyboard simulation (80% faster)
+
+### 6. Testing Standards
+
+**Test Coverage Requirements:**
+- Overall: 80% statement coverage minimum
+- Services (MusicTheory, PatternGenerator): 100% coverage
+- Controllers (StrudelController): 70%+ coverage
+- Integration tests: Key workflows covered
+
+**Test Organization:**
+```
+src/__tests__/
+├── unit/                    # Unit tests (fast)
+│   ├── MusicTheory.test.ts
+│   └── PatternGenerator.test.ts
+├── integration/             # Integration tests (medium)
+│   ├── E2E.integration.test.ts
+│   └── MCPServer.integration.test.ts
+├── validation/              # Validation tests (slow)
+│   ├── GenreValidation.test.ts
+│   └── GenerateExamples.test.ts
+└── browser/                 # Real browser tests (slowest)
+    └── ExampleValidation.browser.test.ts
+```
+
+**Test Naming:**
+```typescript
+describe('AudioAnalyzer - Tempo Detection', () => {
+  it('should detect 120 BPM within ±2 BPM tolerance', async () => {
+    // Test implementation
+  });
+});
+```
+
+### 7. API Design (MCP Tools)
+
+**Tool Naming:**
+- Use snake_case: `detect_tempo`, `generate_pattern`
+- Verbs for actions: `write`, `play`, `stop`, `analyze`
+- Nouns for queries: `get_pattern`, `list`
+
+**Tool Design Principles:**
+```typescript
+// Good - clear parameters, documented return
+{
+  name: 'generate_pattern',
+  description: 'Generate complete pattern for genre',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      style: { type: 'string', description: 'Genre (techno, house, dnb, etc.)' },
+      key: { type: 'string', description: 'Musical key (C, D, E, etc.)' },
+      bpm: { type: 'number', description: 'Tempo in BPM' }
+    },
+    required: ['style']
+  }
+}
+```
+
+**Return Values:**
+- Success: Return data or descriptive message
+- Failure: Return error object with `error` key
+- Include context: `{ bpm: 174, confidence: 0.92, method: 'onset-based' }`
+
+### 8. Dependency Management
+
+**Dependency Selection Criteria:**
+- License: MIT-compatible
+- Maintenance: Active (updated within 6 months)
+- Security: No known vulnerabilities
+- Size: Minimize bundle size
+
+**Version Pinning:**
+```json
+// package.json - exact versions for stability
+"dependencies": {
+  "playwright": "1.49.1",  // Exact version
+  "@modelcontextprotocol/sdk": "^1.0.4"  // Patch updates OK
+}
+```
+
+**Update Schedule:**
+- Security updates: Immediate
+- Minor updates: Monthly
+- Major updates: Quarterly (with testing)
+
+### 9. Version Control Practices
+
+**Commit Message Format:**
+```
+type(scope): brief description (#issue)
+
+Detailed explanation of changes.
+
+- Change 1
+- Change 2
+
+Closes #123
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`
+
+**Branch Strategy:**
+- `main`: Production-ready code
+- Feature branches: Short-lived, merged via PR
+- No direct commits to main
+
+### 10. Accessibility (Future)
+
+**When Building UI:**
+- Semantic HTML
+- ARIA attributes
+- Keyboard navigation
+- Screen reader support
+- WCAG 2.1 AA compliance
+
+**Current State:** MCP server is CLI/API only, no UI. Apply when/if UI is added.
+
+### 11. Concurrency and Parallelism
+
+**Browser Operations:**
+- Single browser instance (avoid race conditions)
+- Sequential pattern writes
+- Parallel file I/O when safe (PatternStore.list)
+
+**Thread Safety:**
+```typescript
+// Good - serialize browser operations
+await this.writePattern(pattern1);
+await this.writePattern(pattern2);
+
+// Good - parallelize independent I/O
+const results = await Promise.all([
+  this.loadPattern('a'),
+  this.loadPattern('b')
+]);
+```
+
+### 12. Resource Management
+
+**Browser Lifecycle:**
+```typescript
+// Acquire late
+const controller = new StrudelController(headless);
+await controller.initialize(); // Only when needed
+
+// Release early
+await controller.cleanup(); // Always cleanup
+```
+
+**Memory Management:**
+- Clear caches on cleanup (StrudelController.cleanup)
+- Limit history buffers (MAX_HISTORY_LENGTH = 100)
+- Close browser properly
+
+### 13. Code Review Standards
+
+**Required Checks:**
+- ✅ TypeScript compiles without errors
+- ✅ All tests pass
+- ✅ Code follows style guide
+- ✅ Documentation complete
+- ✅ No security issues
+- ✅ Performance acceptable
+
+**Review Focus:**
+- Correctness of music theory (scales, chords, rhythms)
+- Browser automation reliability
+- Error handling completeness
+- Test coverage
+
+### 14. Sustainability and Green Coding
+
+**Resource Efficiency:**
+- Minimize browser reloads (reuse instance)
+- Cache aggressively (reduce network calls)
+- Block unnecessary resources (images, fonts)
+- Use headless mode when possible
+
+**Algorithm Efficiency:**
+- O(n log n) FFT for audio analysis
+- O(n) pattern validation
+- Avoid O(n²) operations on large datasets
+
+### 15. Refactoring Guidelines
+
+**Refactoring Triggers:**
+- Function >50 lines
+- Cyclomatic complexity >10
+- Duplicate code (DRY violation)
+- Poor test coverage (<80%)
+
+**Refactoring Process:**
+1. Write tests for current behavior
+2. Make small, incremental changes
+3. Run tests after each change
+4. Commit frequently
+5. Update documentation
+
+### 16. Internationalization (Future)
+
+**When Adding i18n:**
+- Extract user-facing strings
+- Support multiple locales
+- Handle date/time formatting
+- Support different number formats
+
+**Current State:** English only. Add i18n when demand exists.
+
 ## Common Troubleshooting
 
 **Build fails**: `rm -rf dist && npm run build`
