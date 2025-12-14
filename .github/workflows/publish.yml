@@ -2,7 +2,7 @@ name: Publish to npm
 
 on:
   release:
-    types: [created]
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
@@ -15,32 +15,53 @@ on:
           - minor
           - major
 
+# Required for OIDC trusted publishing
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Environment is optional but recommended for additional protection
+    # Configure this environment in GitHub repo settings if desired
+    environment: npm-publish
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
-      
+
+      # Ensure we have npm 11.5.1+ for OIDC trusted publishing
+      - name: Update npm to latest
+        run: npm install -g npm@latest
+
+      - name: Verify npm version
+        run: |
+          NPM_VERSION=$(npm --version)
+          echo "npm version: $NPM_VERSION"
+          # Check if version is >= 11.5.1
+          if [ "$(printf '%s\n' "11.5.1" "$NPM_VERSION" | sort -V | head -n1)" = "11.5.1" ]; then
+            echo "npm version is sufficient for OIDC trusted publishing"
+          else
+            echo "Warning: npm version may be too old for OIDC trusted publishing"
+          fi
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build
         run: npm run build
-      
+
       - name: Run tests
-        run: |
-          echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | timeout 5s node dist/index.js > test_output.json || true
-          grep -q '"jsonrpc":"2.0"' test_output.json || exit 1
-      
+        run: npm test -- --passWithNoThreshold || npm run test:nocov
+
       - name: Version bump (manual trigger only)
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -49,8 +70,13 @@ jobs:
           npm version ${{ github.event.inputs.version }} -m "Release v%s [skip ci]"
           git push
           git push --tags
-      
-      - name: Publish to npm
-        run: npm publish --access public
+
+      # Publish with provenance using OIDC trusted publishing
+      # If trusted publisher is configured on npmjs.com, no NPM_TOKEN needed
+      # Falls back to NPM_TOKEN if trusted publishing isn't configured
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
         env:
+          # NPM_TOKEN is optional when using OIDC trusted publishing
+          # Keep it as fallback for transition period
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

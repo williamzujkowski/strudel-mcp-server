@@ -746,6 +746,19 @@ npm run format
 npm clean
 ```
 
+### Publishing to npm
+
+See [NPM_PUBLISHING.md](NPM_PUBLISHING.md) for complete publishing instructions.
+
+**Quick publish via GitHub Release:**
+```bash
+npm version patch  # or minor, major
+git push && git push --tags
+gh release create v$(node -p "require('./package.json').version") --generate-notes
+```
+
+The package uses OIDC trusted publishing with provenance attestation for supply chain security.
+
 ### Project Structure
 
 ```
