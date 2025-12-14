@@ -184,10 +184,31 @@ export class AudioAnalyzer {
     }
 
     const result = await page.evaluate(() => {
-      if ((window as any).strudelAudioAnalyzer) {
-        return (window as any).strudelAudioAnalyzer.analyze();
+      const analyzer = (window as any).strudelAudioAnalyzer;
+      if (!analyzer) {
+        return {
+          connected: false,
+          error: 'Analyzer not initialized. Audio context may not have started yet.',
+          hint: 'Try playing a pattern first to initialize the audio context.'
+        };
       }
-      return { error: 'Analyzer not initialized' };
+
+      if (!analyzer.isConnected) {
+        return {
+          connected: false,
+          error: 'Analyzer not connected to audio output.',
+          hint: 'Play a pattern to connect the analyzer to Strudel audio output.'
+        };
+      }
+
+      const analysis = analyzer.analyze();
+
+      // Add diagnostic info if no audio detected
+      if (analysis.features && analysis.features.isSilent) {
+        analysis.hint = 'Audio analyzer connected but no audio detected. Ensure pattern is playing.';
+      }
+
+      return analysis;
     });
 
     // Update cache
