@@ -148,9 +148,26 @@ export class StrudelController {
       throw new Error('Failed to write pattern - editor not found or view unavailable');
     }
 
-    // Update cache after successful write
-    this.editorCache = pattern;
+    // Verify the write by reading back from browser (fixes cache sync issues)
+    const verified = await this._page.evaluate(() => {
+      const editor = document.querySelector('.cm-content') as HTMLElement;
+      if (editor) {
+        const view = (editor as any).__view;
+        if (view && view.state && view.state.doc) {
+          return view.state.doc.toString();
+        }
+      }
+      return null;
+    });
+
+    // Update cache with verified content
+    this.editorCache = verified || pattern;
     this.cacheTimestamp = Date.now();
+
+    // Log warning if verification failed
+    if (verified === null) {
+      this.logger.warn('Pattern write verification failed - using input pattern for cache');
+    }
 
     return `Pattern written (${pattern.length} chars)`;
   }
@@ -581,7 +598,7 @@ export class StrudelController {
 
   /**
    * Validates pattern with runtime checking
-   * Writes pattern, waits for errors, reports results
+   * Writes pattern, briefly plays to trigger evaluation, then captures errors
    * @param pattern - Pattern to validate
    * @param waitMs - How long to wait for errors (default 500ms)
    * @returns Validation result with runtime errors
@@ -600,6 +617,16 @@ export class StrudelController {
 
     // Write pattern
     await this.writePattern(pattern);
+
+    // Brief play to trigger evaluation - Strudel uses lazy evaluation
+    // so errors only appear when the pattern is actually executed
+    try {
+      await this._page.keyboard.press('ControlOrMeta+Enter');
+      await this._page.waitForTimeout(Math.min(waitMs, 300));
+      await this._page.keyboard.press('ControlOrMeta+Period');
+    } catch (e) {
+      this.logger.warn('Failed to trigger pattern evaluation', e);
+    }
 
     // Wait for potential errors to appear
     await this._page.waitForTimeout(waitMs);
