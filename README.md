@@ -34,7 +34,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 ## ✨ Features
 
 ### 🎹 Complete Music Control
-- **40+ MCP Tools**: Comprehensive suite for music creation and manipulation
+- **53 MCP Tools**: Comprehensive suite for music creation and manipulation
 - **Real Browser Automation**: Direct control of Strudel.cc through Playwright
 - **Live Audio Analysis**: Real-time frequency analysis via Web Audio API
 - **Pattern Generation**: AI-powered creation across 8+ music genres
@@ -166,6 +166,13 @@ Then ask Claude:
 | `list` | List all patterns |
 | `undo` | Undo last action |
 | `redo` | Redo action |
+
+### Pattern History (3 tools)
+| Tool | Description |
+|------|-------------|
+| `list_history` | Browse pattern history with timestamps and previews |
+| `restore_history` | Restore a previous pattern by ID |
+| `compare_patterns` | Compare two patterns showing line-by-line differences |
 
 ## 🎵 Usage Examples
 
