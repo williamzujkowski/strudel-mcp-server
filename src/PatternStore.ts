@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { Logger } from './utils/Logger.js';
 
 interface PatternData {
   name: string;
@@ -14,8 +15,10 @@ export class PatternStore {
   private listCache: { patterns: PatternData[], timestamp: number } | null = null;
   private readonly LIST_CACHE_TTL = 5000; // 5 seconds
   private directoryEnsured: boolean = false;
+  private logger: Logger;
 
   constructor(private basePath: string) {
+    this.logger = new Logger();
     this.ensureDirectory();
   }
 
@@ -68,7 +71,8 @@ export class PatternStore {
       this.patternCache.set(name, pattern);
 
       return pattern;
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Failed to load pattern: ${name}`, error);
       return null;
     }
   }
@@ -110,7 +114,8 @@ export class PatternStore {
       }
 
       return sorted;
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Failed to list patterns${tag ? ` with tag: ${tag}` : ''}`, error);
       return [];
     }
   }
