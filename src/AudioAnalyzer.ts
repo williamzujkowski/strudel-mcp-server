@@ -3,19 +3,20 @@ import {
   TempoAnalysis,
   KeyAnalysis,
   RhythmAnalysis,
-  AdvancedAudioAnalysis
+  AdvancedAudioAnalysis,
+  AudioAnalysisResult
 } from './types/AudioAnalysis.js';
 
 export class AudioAnalyzer {
-  private analysisCache: any = null;
-  private cacheTimestamp: number = 0;
+  private _analysisCache: AudioAnalysisResult | null = null;
+  private _cacheTimestamp: number = 0;
   private readonly ANALYSIS_CACHE_TTL = 50; // milliseconds
 
   // Advanced analysis tracking
-  private onsetHistory: number[] = [];
-  private spectralFluxHistory: number[] = [];
-  private previousMagnitudes: number[] | null = null;
-  private chromaHistory: number[][] = [];
+  private _onsetHistory: number[] = [];
+  private _spectralFluxHistory: number[] = [];
+  private _previousMagnitudes: number[] | null = null;
+  private _chromaHistory: number[][] = [];
   private readonly ONSET_THRESHOLD = 0.3;
   private readonly MAX_HISTORY_LENGTH = 100;
 
@@ -43,7 +44,12 @@ export class AudioAnalyzer {
         analyser: null as AnalyserNode | null,
         dataArray: null as Uint8Array | null,
         isConnected: false,
-        lastAnalysis: null as any,
+        lastAnalysis: null as {
+          connected: boolean;
+          timestamp?: number;
+          features?: any;
+          error?: string;
+        } | null,
         lastAnalysisTime: 0,
 
         connect() {
@@ -170,11 +176,11 @@ export class AudioAnalyzer {
    * @param page - Playwright page instance to analyze
    * @returns Audio analysis features including frequency bands and characteristics
    */
-  async getAnalysis(page: Page): Promise<any> {
+  async getAnalysis(page: Page): Promise<AudioAnalysisResult> {
     // Client-side caching with local fallback
     const now = Date.now();
-    if (this.analysisCache && (now - this.cacheTimestamp) < this.ANALYSIS_CACHE_TTL) {
-      return this.analysisCache;
+    if (this._analysisCache && (now - this._cacheTimestamp) < this.ANALYSIS_CACHE_TTL) {
+      return this._analysisCache;
     }
 
     const result = await page.evaluate(() => {
@@ -185,8 +191,8 @@ export class AudioAnalyzer {
     });
 
     // Update cache
-    this.analysisCache = result;
-    this.cacheTimestamp = now;
+    this._analysisCache = result;
+    this._cacheTimestamp = now;
 
     return result;
   }
@@ -195,8 +201,8 @@ export class AudioAnalyzer {
    * Clears the analysis cache
    */
   clearCache() {
-    this.analysisCache = null;
-    this.cacheTimestamp = 0;
+    this._analysisCache = null;
+    this._cacheTimestamp = 0;
   }
 
   // ============================================================================
@@ -207,18 +213,18 @@ export class AudioAnalyzer {
    * Calculate spectral flux (rate of change in frequency spectrum)
    */
   private calculateSpectralFlux(currentMagnitudes: Uint8Array): number {
-    if (!this.previousMagnitudes) {
-      this.previousMagnitudes = Array.from(currentMagnitudes);
+    if (!this._previousMagnitudes) {
+      this._previousMagnitudes = Array.from(currentMagnitudes);
       return 0;
     }
 
     let flux = 0;
     for (let i = 0; i < currentMagnitudes.length; i++) {
-      const diff = currentMagnitudes[i] - this.previousMagnitudes[i];
+      const diff = currentMagnitudes[i] - this._previousMagnitudes[i];
       flux += Math.max(0, diff); // Only positive differences (increase in energy)
     }
 
-    this.previousMagnitudes = Array.from(currentMagnitudes);
+    this._previousMagnitudes = Array.from(currentMagnitudes);
     return flux / currentMagnitudes.length / 255; // Normalize to 0-1
   }
 
@@ -394,13 +400,13 @@ export class AudioAnalyzer {
         const flux = this.calculateSpectralFlux(fftData);
 
         if (flux > this.ONSET_THRESHOLD) {
-          this.onsetHistory.push(Date.now());
-          if (this.onsetHistory.length > this.MAX_HISTORY_LENGTH) {
-            this.onsetHistory.shift();
+          this._onsetHistory.push(Date.now());
+          if (this._onsetHistory.length > this.MAX_HISTORY_LENGTH) {
+            this._onsetHistory.shift();
           }
         }
 
-        onsets = [...this.onsetHistory];
+        onsets = [...this._onsetHistory];
       }
     } else {
       // No analyze function, use real-time detection
@@ -411,13 +417,13 @@ export class AudioAnalyzer {
       const flux = this.calculateSpectralFlux(fftData);
 
       if (flux > this.ONSET_THRESHOLD) {
-        this.onsetHistory.push(Date.now());
-        if (this.onsetHistory.length > this.MAX_HISTORY_LENGTH) {
-          this.onsetHistory.shift();
+        this._onsetHistory.push(Date.now());
+        if (this._onsetHistory.length > this.MAX_HISTORY_LENGTH) {
+          this._onsetHistory.shift();
         }
       }
 
-      onsets = [...this.onsetHistory];
+      onsets = [...this._onsetHistory];
     }
 
     // Need at least 4 onsets for reliable tempo detection
@@ -611,13 +617,13 @@ export class AudioAnalyzer {
         const flux = this.calculateSpectralFlux(fftData);
 
         if (flux > this.ONSET_THRESHOLD) {
-          this.onsetHistory.push(Date.now());
-          if (this.onsetHistory.length > this.MAX_HISTORY_LENGTH) {
-            this.onsetHistory.shift();
+          this._onsetHistory.push(Date.now());
+          if (this._onsetHistory.length > this.MAX_HISTORY_LENGTH) {
+            this._onsetHistory.shift();
           }
         }
 
-        onsets = [...this.onsetHistory];
+        onsets = [...this._onsetHistory];
       }
     } else {
       // No analyze function, use real-time detection
@@ -625,13 +631,13 @@ export class AudioAnalyzer {
       const flux = this.calculateSpectralFlux(fftData);
 
       if (flux > this.ONSET_THRESHOLD) {
-        this.onsetHistory.push(Date.now());
-        if (this.onsetHistory.length > this.MAX_HISTORY_LENGTH) {
-          this.onsetHistory.shift();
+        this._onsetHistory.push(Date.now());
+        if (this._onsetHistory.length > this.MAX_HISTORY_LENGTH) {
+          this._onsetHistory.shift();
         }
       }
 
-      onsets = [...this.onsetHistory];
+      onsets = [...this._onsetHistory];
     }
 
     // Need at least 2 onsets for rhythm analysis

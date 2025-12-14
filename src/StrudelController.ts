@@ -3,6 +3,13 @@ import { AudioAnalyzer } from './AudioAnalyzer.js';
 import { PatternValidator, ValidationResult } from './utils/PatternValidator.js';
 import { ErrorRecovery } from './utils/ErrorRecovery.js';
 import { Logger } from './utils/Logger.js';
+import {
+  AudioAnalysisResult,
+  KeyAnalysis,
+  TempoAnalysis,
+  PatternStats,
+  BrowserDiagnostics
+} from './types/AudioAnalysis.js';
 
 export class StrudelController {
   private browser: Browser | null = null;
@@ -227,7 +234,7 @@ export class StrudelController {
    * @returns Audio analysis data including frequency features
    * @throws {Error} When not initialized
    */
-  async analyzeAudio(): Promise<any> {
+  async analyzeAudio(): Promise<AudioAnalysisResult> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.getAnalysis(this._page);
@@ -238,7 +245,7 @@ export class StrudelController {
    * @returns Key analysis including key, scale/mode, and confidence
    * @throws {Error} When not initialized or analyzer not connected
    */
-  async detectKey(): Promise<any> {
+  async detectKey(): Promise<KeyAnalysis | null> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.detectKey(this._page);
@@ -249,7 +256,7 @@ export class StrudelController {
    * @returns Tempo analysis including BPM, confidence, and detection method
    * @throws {Error} When not initialized or analyzer not connected
    */
-  async detectTempo(): Promise<any> {
+  async detectTempo(): Promise<TempoAnalysis | null> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.detectTempo(this._page);
@@ -257,6 +264,12 @@ export class StrudelController {
 
   /**
    * Cleans up browser resources and closes the connection
+   * @returns Promise that resolves when cleanup is complete
+   * @example
+   * const controller = new StrudelController();
+   * await controller.initialize();
+   * // ... use controller ...
+   * await controller.cleanup();
    */
   async cleanup() {
     if (this.browser) {
@@ -273,6 +286,10 @@ export class StrudelController {
 
   /**
    * Invalidates the editor content cache
+   * Forces next getCurrentPattern() call to fetch fresh content from browser
+   * @example
+   * controller.invalidateCache();
+   * const pattern = await controller.getCurrentPattern(); // Fetches from browser
    */
   invalidateCache() {
     this.editorCache = '';
@@ -318,7 +335,9 @@ export class StrudelController {
     pattern: string,
     options: { autoFix?: boolean; skipValidation?: boolean } = {}
   ): Promise<{ result: string; validation?: ValidationResult }> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     // Validate unless skipped
     if (!options.skipValidation) {
@@ -370,7 +389,9 @@ export class StrudelController {
    * @returns Result message
    */
   async appendPattern(code: string): Promise<string> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     const current = await this.getCurrentPattern();
     const newPattern = current + '\n' + code;
@@ -385,7 +406,9 @@ export class StrudelController {
    * @returns Result message
    */
   async insertAtLine(line: number, code: string): Promise<string> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     const current = await this.getCurrentPattern();
     const lines = current.split('\n');
@@ -399,16 +422,31 @@ export class StrudelController {
   }
 
   /**
+   * Escapes special regex characters in a string for safe use in RegExp
+   * @nist si-10 "Input validation"
+   * @param str - String to escape
+   * @returns Escaped string safe for RegExp
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
    * Replaces text in pattern
-   * @param search - Text to find
+   * @param search - Text to find (literal string, not regex)
    * @param replace - Replacement text
    * @returns Result message
+   * @throws {Error} When browser not initialized
    */
   async replaceInPattern(search: string, replace: string): Promise<string> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     const current = await this.getCurrentPattern();
-    const newPattern = current.replace(new RegExp(search, 'g'), replace);
+    // Escape regex special characters to prevent injection
+    const escaped = this.escapeRegex(search);
+    const newPattern = current.replace(new RegExp(escaped, 'g'), replace);
 
     if (current === newPattern) {
       return `No matches found for: ${search}`;
@@ -421,15 +459,10 @@ export class StrudelController {
    * Gets pattern statistics
    * @returns Pattern statistics
    */
-  async getPatternStats(): Promise<{
-    lines: number;
-    chars: number;
-    sounds: number;
-    notes: number;
-    effects: number;
-    functions: number;
-  }> {
-    if (!this._page) throw new Error('Not initialized');
+  async getPatternStats(): Promise<PatternStats> {
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     const pattern = await this.getCurrentPattern();
     const lines = pattern.split('\n');
@@ -452,9 +485,11 @@ export class StrudelController {
     pattern: string;
     timestamp: string;
     isPlaying: boolean;
-    stats: any;
+    stats: PatternStats;
   }> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     const pattern = await this.getCurrentPattern();
     const stats = await this.getPatternStats();
@@ -469,18 +504,38 @@ export class StrudelController {
 
   /**
    * Executes JavaScript in the Strudel context
-   * @param code - JavaScript code to execute
+   * @nist si-10 "Input validation"
+   * @param code - JavaScript code to execute (must pass pattern validation)
    * @returns Execution result
+   * @throws {Error} When browser not initialized or code validation fails
    */
   async executeInStrudelContext(code: string): Promise<any> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
+
+    // Validate code before execution to prevent dangerous patterns
+    const validation = this.validator.validate(code);
+    if (!validation.valid) {
+      throw new Error(
+        `Code validation failed: ${validation.errors.join('; ')}. ` +
+        `Suggestions: ${validation.suggestions.join('; ')}`
+      );
+    }
 
     try {
+      // Use Function constructor with restricted scope instead of raw eval
+      // This executes in Strudel's context via page.evaluate, not in Node
       return await this._page.evaluate((jsCode) => {
-        return eval(jsCode);
+        // Execute in the page's Strudel context where Strudel functions are available
+        const fn = new Function('return ' + jsCode);
+        return fn();
       }, code);
     } catch (error: any) {
-      this.logger.error('Failed to execute code in Strudel context', error);
+      this.logger.error('Failed to execute code in Strudel context', {
+        code: code.substring(0, 100),
+        error: error.message
+      });
       throw new Error(`Execution failed: ${error.message}`);
     }
   }
@@ -521,7 +576,9 @@ export class StrudelController {
     errors: string[];
     warnings: string[];
   }> {
-    if (!this._page) throw new Error('Not initialized');
+    if (!this._page) {
+      throw new Error('Browser not initialized. Run init tool first.');
+    }
 
     // Clear previous errors
     this.clearConsoleMessages();
@@ -554,18 +611,8 @@ export class StrudelController {
    * Gets detailed browser diagnostics
    * @returns Diagnostic information
    */
-  async getDiagnostics(): Promise<{
-    browserConnected: boolean;
-    pageLoaded: boolean;
-    editorReady: boolean;
-    audioConnected: boolean;
-    cacheStatus: {
-      hasCache: boolean;
-      cacheAge: number;
-    };
-    errorStats: any;
-  }> {
-    const diagnostics: any = {
+  async getDiagnostics(): Promise<BrowserDiagnostics> {
+    const diagnostics: BrowserDiagnostics = {
       browserConnected: this.browser !== null,
       pageLoaded: this._page !== null,
       editorReady: false,

@@ -30,6 +30,8 @@ export class EnhancedMCPServerFixed {
   private sessionHistory: string[] = [];
   private undoStack: string[] = [];
   private redoStack: string[] = [];
+  /** Maximum history entries to prevent memory leaks */
+  private readonly MAX_HISTORY = 100;
   private isInitialized: boolean = false;
   private generatedPatterns: Map<string, string> = new Map();
 
@@ -563,6 +565,10 @@ export class EnhancedMCPServerFixed {
       try {
         const current = await this.controller.getCurrentPattern();
         this.undoStack.push(current);
+        // Enforce bounds to prevent memory leaks
+        if (this.undoStack.length > this.MAX_HISTORY) {
+          this.undoStack.shift();
+        }
         this.redoStack = [];
       } catch (e) {
         // Controller might not be initialized yet
@@ -938,12 +944,16 @@ export class EnhancedMCPServerFixed {
         if (this.undoStack.length > 0) {
           const currentUndo = await this.controller.getCurrentPattern();
           this.redoStack.push(currentUndo);
+          // Enforce bounds to prevent memory leaks
+          if (this.redoStack.length > this.MAX_HISTORY) {
+            this.redoStack.shift();
+          }
           const previous = this.undoStack.pop()!;
           await this.controller.writePattern(previous);
           return 'Undone';
         }
         return 'Nothing to undo';
-      
+
       case 'redo':
         if (!this.isInitialized) {
           return 'Browser not initialized. Run init first.';
@@ -951,6 +961,10 @@ export class EnhancedMCPServerFixed {
         if (this.redoStack.length > 0) {
           const currentRedo = await this.controller.getCurrentPattern();
           this.undoStack.push(currentRedo);
+          // Enforce bounds to prevent memory leaks
+          if (this.undoStack.length > this.MAX_HISTORY) {
+            this.undoStack.shift();
+          }
           const next = this.redoStack.pop()!;
           await this.controller.writePattern(next);
           return 'Redone';
