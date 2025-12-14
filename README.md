@@ -10,19 +10,19 @@
 
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
-[![Tools](https://img.shields.io/badge/tools-40+-green.svg)]()
+[![Tools](https://img.shields.io/badge/tools-52-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
 
-**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 52% with 435 out of 444 tests passing. See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 69% with 712 tests passing (743 total, 31 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
 
 ## Table of Contents
 
 - [Features](#-features)
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
-- [Available Tools](#-available-tools-40)
+- [Available Tools](#-available-tools-52)
 - [Usage Examples](#-usage-examples)
 - [Architecture](#-architecture)
 - [Advanced Usage](#-advanced-usage)
@@ -34,7 +34,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 ## ✨ Features
 
 ### 🎹 Complete Music Control
-- **53 MCP Tools**: Comprehensive suite for music creation and manipulation
+- **52 MCP Tools**: Comprehensive suite for music creation and manipulation
 - **Real Browser Automation**: Direct control of Strudel.cc through Playwright
 - **Live Audio Analysis**: Real-time frequency analysis via Web Audio API
 - **Pattern Generation**: AI-powered creation across 8+ music genres
@@ -42,12 +42,12 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - **Session Management**: Save, load, undo/redo with pattern storage
 
 ### 🔧 Testing & Development Status
-- ✅ **Test Suite**: 435 of 444 tests passing (97.9% pass rate)
-- ⚠️ **Code Coverage**: 52% statement coverage (goal: 80%)
+- ✅ **Test Suite**: 712 tests passing (743 total, 31 skipped)
+- ⚠️ **Code Coverage**: 69% statement coverage (goal: 80%)
 - ✅ **Browser Integration**: Works with live Strudel.cc website
 - ✅ **Audio Analysis**: Real-time FFT analysis functional
 - ✅ **Pattern Generation**: Core music generation features working
-- ⚠️ **Error Handling**: Basic retry logic implemented, improvements ongoing
+- ✅ **OIDC Publishing**: Secure npm publishing with provenance attestation
 
 **Not Production-Ready:** This is experimental software under active development. Use for exploration and experimentation. Expect breaking changes, bugs, and incomplete features. See [CONTRIBUTING.md](CONTRIBUTING.md) to help improve it.
 
@@ -109,7 +109,7 @@ Then ask Claude:
 - "Generate a jazz chord progression in F major"
 - "Create a drum & bass pattern at 174 BPM"
 
-## 🛠️ Available Tools (40+)
+## 🛠️ Available Tools (52)
 
 ### Core Control (10 tools)
 | Tool | Description | Example |
@@ -125,38 +125,37 @@ Then ask Claude:
 | `replace` | Replace text | "Replace bd with sn" |
 | `pause` | Pause playback | "Pause" |
 
-### Pattern Generation (10 tools)
-| Tool | Description | Styles/Options |
-|------|-------------|----------------|
-| `generate_pattern` | Complete patterns | techno, house, dnb, ambient, trap, jungle |
+### Pattern Generation & Manipulation (10 tools)
+| Tool | Description | Options |
+|------|-------------|---------|
+| `generate_pattern` | Complete patterns | techno, house, dnb, ambient, trap, jungle, jazz |
 | `generate_drums` | Drum patterns | All styles + complexity (0-1) |
 | `generate_bassline` | Bass patterns | techno, house, dnb, acid, dub, funk, jazz |
 | `generate_melody` | Melodic lines | Any scale, custom length |
 | `generate_variation` | Pattern variations | subtle, moderate, extreme, glitch |
-| `generate_fill` | Drum fills | All styles, 1-4 bars |
 | `transpose` | Transpose notes | ±12 semitones |
 | `reverse` | Reverse pattern | - |
 | `stretch` | Time stretch | Factor 0.1-10 |
+| `quantize` | Quantize to grid | 1/4, 1/8, 1/16, etc. |
 | `humanize` | Add timing variation | Amount 0-1 |
 
-### Music Theory (10 tools)
+### Music Theory (6 tools)
 | Tool | Description | Options |
 |------|-------------|---------|
 | `generate_scale` | Generate scales | major, minor, modes, pentatonic, blues |
 | `generate_chord_progression` | Chord progressions | pop, jazz, blues, rock, folk |
 | `generate_euclidean` | Euclidean rhythms | hits/steps/sound |
 | `generate_polyrhythm` | Polyrhythms | Multiple patterns |
+| `generate_fill` | Generate drum fills | All styles, 1-4 bars |
 | `apply_scale` | Apply scale to notes | Any scale |
-| `quantize` | Quantize to grid | 1/4, 1/8, 1/16, etc |
 
-### Audio & Effects (5 tools)
-| Tool | Description | Returns |
-|------|-------------|---------|
-| `analyze` | Audio analysis | Frequency data, playing state |
-| `analyze_spectrum` | FFT analysis | Spectral data |
-| `add_effect` | Add audio effect | Effect chain |
-| `set_tempo` | Set BPM | 60-200 BPM |
-| `add_swing` | Add swing feel | 0-1 amount |
+### Effects (4 tools)
+| Tool | Description |
+|------|-------------|
+| `add_effect` | Add audio effect (reverb, delay, etc.) |
+| `remove_effect` | Remove an effect from the chain |
+| `set_tempo` | Set BPM (60-200) |
+| `add_swing` | Add swing feel (0-1 amount) |
 
 ### Session Management (5 tools)
 | Tool | Description |
@@ -173,6 +172,32 @@ Then ask Claude:
 | `list_history` | Browse pattern history with timestamps and previews |
 | `restore_history` | Restore a previous pattern by ID |
 | `compare_patterns` | Compare two patterns showing line-by-line differences |
+
+### Audio Analysis (6 tools)
+| Tool | Description |
+|------|-------------|
+| `analyze` | Basic audio analysis (frequency, playing state) |
+| `analyze_spectrum` | FFT spectral analysis |
+| `analyze_rhythm` | Rhythm complexity analysis |
+| `detect_tempo` | BPM detection |
+| `detect_key` | Musical key detection |
+| `validate_pattern_runtime` | Validate pattern with browser error checking |
+
+### UX & Browser Control (6 tools)
+| Tool | Description |
+|------|-------------|
+| `compose` | One-shot pattern generation with auto-play |
+| `status` | Get current browser/playback state |
+| `diagnostics` | Detailed system diagnostics |
+| `show_browser` | Bring browser window to foreground |
+| `screenshot` | Capture browser screenshot |
+| `show_errors` | Display captured console errors |
+
+### Performance (2 tools)
+| Tool | Description |
+|------|-------------|
+| `performance_report` | Timing metrics and bottleneck analysis |
+| `memory_usage` | Memory consumption statistics |
 
 ## 🎵 Usage Examples
 
