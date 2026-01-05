@@ -135,3 +135,24 @@ Examples are validated by `src/__tests__/validation/GenreValidation.test.ts`:
 - Metadata completeness
 
 Run validation: `npm test -- GenreValidation`
+
+### Intelligent DnB
+- **BPM**: 160-175
+- **Key signatures**: Minor scales with jazz extensions (Cm9, Fm9, Bbm9)
+- **Elements**: Rolling breakbeats (amen, breaks165), sine sub bass, Rhodes, strings
+- **Patterns**: Atmospheric, jazz-influenced, LTJ Bukem / Good Looking Records style
+- **Aliases**: liquid_dnb, atmospheric_dnb, bukem
+
+### Trip Hop
+- **BPM**: 80-100
+- **Key signatures**: Minor scales (Dm7, Gm7, Am7)
+- **Elements**: Slow heavy drums, dusty textures, dark Rhodes, vinyl crackle
+- **Patterns**: Half-time feel, moody, Portishead / Massive Attack style
+- **Aliases**: triphop, portishead, massive_attack, flying_lotus
+
+### Boom Bap
+- **BPM**: 85-100
+- **Key signatures**: Minor scales (Em7, Am7, Dm7)
+- **Elements**: Hard-hitting kicks, crispy snares, soul samples, horn stabs
+- **Patterns**: Swing feel, classic hip-hop, DJ Premier / Alchemist style
+- **Aliases**: boombap, golden_era, premier, alchemist, daringer, hitboy
