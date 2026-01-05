@@ -53,7 +53,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 
 ### 🎼 Example Patterns
 
-Explore 14 curated example patterns across 7 genres in [`patterns/examples/`](patterns/examples/):
+Explore 17 curated example patterns across 10 genres in [`patterns/examples/`](patterns/examples/):
 
 - **Techno**: Hard techno, minimal techno
 - **House**: Deep house, tech house
@@ -62,6 +62,9 @@ Explore 14 curated example patterns across 7 genres in [`patterns/examples/`](pa
 - **Trap**: Modern trap, cloud trap
 - **Jungle**: Classic jungle, ragga jungle
 - **Jazz**: Bebop, modal jazz
+- **Intelligent DnB**: Atmospheric, liquid, LTJ Bukem style
+- **Trip Hop**: Portishead, Massive Attack, Flying Lotus style
+- **Boom Bap**: DJ Premier, Alchemist, golden era hip hop
 
 Each example includes pattern code, BPM, key, and description. See [`patterns/examples/README.md`](patterns/examples/README.md) for details.
 
@@ -128,9 +131,9 @@ Then ask Claude:
 ### Pattern Generation & Manipulation (10 tools)
 | Tool | Description | Options |
 |------|-------------|---------|
-| `generate_pattern` | Complete patterns | techno, house, dnb, ambient, trap, jungle, jazz |
+| `generate_pattern` | Complete patterns | techno, house, dnb, ambient, trap, jungle, jazz, intelligent_dnb, trip_hop, boom_bap |
 | `generate_drums` | Drum patterns | All styles + complexity (0-1) |
-| `generate_bassline` | Bass patterns | techno, house, dnb, acid, dub, funk, jazz |
+| `generate_bassline` | Bass patterns | techno, house, dnb, acid, dub, funk, jazz, intelligent_dnb, trip_hop, boom_bap |
 | `generate_melody` | Melodic lines | Any scale, custom length |
 | `generate_variation` | Pattern variations | subtle, moderate, extreme, glitch |
 | `transpose` | Transpose notes | ±12 semitones |
@@ -569,7 +572,7 @@ wholetone, harmonic_minor, melodic_minor
 #### 5. **PatternGenerator** (`src/services/PatternGenerator.ts`)
 
 AI-powered pattern creation:
-- **Genre Templates**: Techno, house, DnB, trap, ambient, jazz
+- **Genre Templates**: Techno, house, DnB, trap, ambient, jazz, intelligent_dnb, trip_hop, boom_bap
 - **Drum Patterns**: 4 complexity levels per genre
 - **Basslines**: 8 different styles
 - **Melody Generation**: Scale-based with musical intervals
