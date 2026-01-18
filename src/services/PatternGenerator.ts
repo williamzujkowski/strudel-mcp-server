@@ -3,6 +3,28 @@ import { MusicTheory } from './MusicTheory.js';
 export class PatternGenerator {
   private theory = new MusicTheory();
 
+  // Note interval lookup for chord calculations
+  private readonly notes = ['c', 'db', 'd', 'eb', 'e', 'f', 'gb', 'g', 'ab', 'a', 'bb', 'b'];
+
+  /**
+   * Get a note at a specific interval from the root
+   */
+  private getInterval(root: string, semitones: number): string {
+    const normalizedRoot = root.toLowerCase().replace('#', 'b');
+    const sharpToFlat: Record<string, string> = {
+      'c#': 'db', 'd#': 'eb', 'f#': 'gb', 'g#': 'ab', 'a#': 'bb'
+    };
+    const searchRoot = sharpToFlat[normalizedRoot] || normalizedRoot;
+    const idx = this.notes.indexOf(searchRoot);
+    if (idx === -1) return root;
+    return this.notes[(idx + semitones) % 12];
+  }
+
+  private getFourth(root: string): string { return this.getInterval(root, 5); }
+  private getFifth(root: string): string { return this.getInterval(root, 7); }
+  private getMinorThird(root: string): string { return this.getInterval(root, 3); }
+  private getMinorSeventh(root: string): string { return this.getInterval(root, 10); }
+
   /**
    * Generates a drum pattern for a given style
    * @param style - Music style (e.g., 'techno', 'house', 'dnb', 'ambient')
@@ -51,10 +73,78 @@ export class PatternGenerator {
         's("bd").euclid(5, 8)',
         's("bd cp").euclid(7, 16)',
         's("bd cp hh").euclid(choose([3, 5, 7]), 16)'
+      ],
+      // === NEW GENRES ===
+      intelligent_dnb: [
+        // Minimal - sparse break
+        `s("breaks165").fit().slice(8, "0 ~ ~ 3 ~ ~ 6 ~").gain(0.5).room(0.3).lpf(5000)`,
+        // Medium - classic rolling break
+        `s("breaks165").fit().slice(8, "0 0 6 3 0 2 6 7").gain(0.7).room(0.2)`,
+        // Complex - layered breaks
+        `stack(
+          s("breaks165").fit().slice(8, "0 0 6 3 0 2 6 7").gain(0.65).room(0.2),
+          s("breaks165").fit().chop(16).gain(0.12).hpf(3000).room(0.4),
+          s("bd ~ ~ ~ [~ bd] ~ bd ~").bank("RolandTR909").gain(0.45).lpf(100)
+        )`
+      ],
+      trip_hop: [
+        // Minimal - sparse and moody
+        `s("bd ~ ~ ~, ~ ~ ~ sd:3").room(0.5).gain(0.7)`,
+        // Medium - classic trip hop groove
+        `stack(
+          s("bd ~ ~ bd ~ ~ bd ~").gain(0.8),
+          s("~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR808").gain(0.7).room(0.4),
+          s("hh*8").gain(0.25).hpf(6000).pan(sine.range(0.3, 0.7))
+        )`,
+        // Complex - layered with vinyl texture
+        `stack(
+          s("bd ~ [~ bd] ~ bd ~ ~ ~").gain(0.8),
+          s("~ ~ ~ ~ sd ~ ~ sd:2?").bank("RolandTR808").gain(0.7).room(0.5),
+          s("hh*8").gain(perlin.range(0.15, 0.3)).hpf(5000),
+          s("~ oh ~ ~ ~ oh ~ ~").bank("RolandTR808").gain(0.2).room(0.6)
+        ).slow(2)`
+      ],
+      boom_bap: [
+        // Minimal - hard kick and snare
+        `s("bd ~ ~ ~ sd ~ ~ ~, bd ~ ~ ~ sd ~ bd ~")`,
+        // Medium - classic boom bap with hats
+        `stack(
+          s("bd ~ ~ ~ sd ~ ~ ~, bd ~ ~ bd sd ~ bd ~").gain(0.9),
+          s("hh*8").gain(0.4).hpf(5000),
+          s("~ ~ oh ~ ~ ~ oh ~").gain(0.3)
+        ).swing(0.08)`,
+        // Complex - layered golden era style
+        `stack(
+          s("bd ~ ~ [~ bd] sd ~ ~ ~, bd ~ ~ bd sd ~ [bd bd] ~").gain(0.9),
+          s("~ ~ ~ ~ sd:3 ~ ~ ~").gain(0.3).room(0.2),
+          s("[~ hh]*8").gain(0.45).hpf(4000),
+          s("~ ~ oh ~ ~ ~ ~ oh:2").gain(0.25).room(0.3)
+        ).swing(0.1)`
       ]
     };
 
-    const stylePatterns = patterns[style] || patterns.techno;
+    // Handle aliases
+    const styleMap: Record<string, string> = {
+      'liquid_dnb': 'intelligent_dnb',
+      'atmospheric_dnb': 'intelligent_dnb',
+      'intelligent': 'intelligent_dnb',
+      'liquid': 'intelligent_dnb',
+      'atmospheric': 'intelligent_dnb',
+      'bukem': 'intelligent_dnb',
+      'triphop': 'trip_hop',
+      'portishead': 'trip_hop',
+      'massive_attack': 'trip_hop',
+      'flying_lotus': 'trip_hop',
+      'boombap': 'boom_bap',
+      'golden_era': 'boom_bap',
+      'premier': 'boom_bap',
+      'alchemist': 'boom_bap',
+      'daringer': 'boom_bap',
+      'hitboy': 'boom_bap'
+    };
+
+    const resolvedStyle = styleMap[style.toLowerCase()] || style.toLowerCase();
+    const stylePatterns = patterns[resolvedStyle] || patterns.techno;
     const index = Math.min(Math.floor(complexity * stylePatterns.length), stylePatterns.length - 1);
     return stylePatterns[index];
   }
@@ -66,6 +156,11 @@ export class PatternGenerator {
    * @returns Strudel bassline pattern code
    */
   generateBassline(key: string, style: string): string {
+    const safeKey = key.toLowerCase();
+    const fourth = this.getFourth(safeKey);
+    const fifth = this.getFifth(safeKey);
+    const minorSeventh = this.getMinorSeventh(safeKey);
+
     const patterns: Record<string, string> = {
       techno: `note("${key}2 ${key}2 ${key}2 ${key}2").s("sawtooth").cutoff(800)`,
       house: `note("${key}2 ~ ${key}2 ~").s("sine").gain(0.8)`,
@@ -74,10 +169,52 @@ export class PatternGenerator {
       dub: `note("${key}1 ~ ~ ~ ${key}1 ~ ${this.theory.getNote(key, 5)}1 ~").s("sine:2").room(0.5)`,
       funk: `note("${key}2 ${key}2 ~ ${this.theory.getNote(key, 5)}2 ~ ${key}2 ${this.theory.getNote(key, 7)}2 ~").s("square").cutoff(1200)`,
       jazz: `note("${key}2 ~ ${this.theory.getNote(key, 4)}2 ~ ${this.theory.getNote(key, 7)}2 ~").s("sine").gain(0.7)`,
-      ambient: `note("${key}1").s("sine").attack(2).release(4).gain(0.6)`
+      ambient: `note("${key}1").s("sine").attack(2).release(4).gain(0.6)`,
+      // === NEW GENRES ===
+      intelligent_dnb: `note("<${safeKey}1 ~ ${safeKey}1 ~> <${fourth}1 ~ ~ ${fourth}1> <${minorSeventh}0 ~ ${minorSeventh}0 ~> <${this.getMinorThird(safeKey)}1 ~ ~ ~>")
+        .s("sine")
+        .gain(0.65)
+        .lpf(80)
+        .attack(0.01)
+        .decay(0.2)
+        .sustain(0.5)
+        .release(0.4)`,
+      trip_hop: `note("<${safeKey}1 ~ ~ ${safeKey}1> <~ ${fourth}1 ~ ~> <${fifth}1 ~ ${safeKey}1 ~> <~ ~ ${fourth}1 ~>")
+        .s("sine")
+        .gain(0.7)
+        .lpf(120)
+        .attack(0.02)
+        .decay(0.3)
+        .sustain(0.6)
+        .release(0.8)
+        .room(0.3)`,
+      boom_bap: `note("<${safeKey}1 ~ ${safeKey}1 ~> <${safeKey}1 ${fourth}1 ~ ~> <${safeKey}1 ~ ${fifth}1 ~> <${fourth}1 ~ ${safeKey}1 ~>")
+        .s("sawtooth")
+        .gain(0.7)
+        .lpf(200)
+        .attack(0.01)
+        .decay(0.15)
+        .sustain(0.4)
+        .release(0.3)`
     };
 
-    return patterns[style] || patterns.techno;
+    // Handle aliases
+    const styleMap: Record<string, string> = {
+      'liquid_dnb': 'intelligent_dnb',
+      'atmospheric_dnb': 'intelligent_dnb',
+      'intelligent': 'intelligent_dnb',
+      'liquid': 'intelligent_dnb',
+      'bukem': 'intelligent_dnb',
+      'triphop': 'trip_hop',
+      'portishead': 'trip_hop',
+      'massive_attack': 'trip_hop',
+      'boombap': 'boom_bap',
+      'golden_era': 'boom_bap',
+      'premier': 'boom_bap'
+    };
+
+    const resolvedStyle = styleMap[style.toLowerCase()] || style.toLowerCase();
+    return patterns[resolvedStyle] || patterns.techno;
   }
 
   /**
@@ -141,18 +278,51 @@ export class PatternGenerator {
    * @returns Complete Strudel pattern with drums, bass, chords, and melody
    */
   generateCompletePattern(style: string, key: string = 'C', bpm: number = 120): string {
-    const drums = this.generateDrumPattern(style, 0.7);
-    const bass = this.generateBassline(key, style);
-    const scale = this.theory.generateScale(key, style === 'jazz' ? 'dorian' : 'minor');
+    // Handle aliases and special genres
+    const styleMap: Record<string, string> = {
+      'liquid_dnb': 'intelligent_dnb',
+      'atmospheric_dnb': 'intelligent_dnb',
+      'intelligent': 'intelligent_dnb',
+      'liquid': 'intelligent_dnb',
+      'atmospheric': 'intelligent_dnb',
+      'bukem': 'intelligent_dnb',
+      'triphop': 'trip_hop',
+      'portishead': 'trip_hop',
+      'massive_attack': 'trip_hop',
+      'flying_lotus': 'trip_hop',
+      'boombap': 'boom_bap',
+      'golden_era': 'boom_bap',
+      'premier': 'boom_bap',
+      'alchemist': 'boom_bap',
+      'daringer': 'boom_bap',
+      'hitboy': 'boom_bap'
+    };
+
+    const resolvedStyle = styleMap[style.toLowerCase()] || style.toLowerCase();
+
+    // Use specialized generators for new genres
+    switch (resolvedStyle) {
+      case 'intelligent_dnb':
+        return this.generateIntelligentDnB(key, bpm || 170);
+      case 'trip_hop':
+        return this.generateTripHop(key, bpm || 90);
+      case 'boom_bap':
+        return this.generateBoomBap(key, bpm || 92);
+    }
+
+    // Default generation for other styles
+    const drums = this.generateDrumPattern(resolvedStyle, 0.7);
+    const bass = this.generateBassline(key, resolvedStyle);
+    const scale = this.theory.generateScale(key, resolvedStyle === 'jazz' ? 'dorian' : 'minor');
     const melody = this.generateMelody(scale);
     
-    const chordStyle = style === 'jazz' ? 'jazz' : 
-                      style === 'house' ? 'pop' : 
-                      style === 'techno' ? 'edm' : 'pop';
+    const chordStyle = resolvedStyle === 'jazz' ? 'jazz' : 
+                      resolvedStyle === 'house' ? 'pop' : 
+                      resolvedStyle === 'techno' ? 'edm' : 'pop';
     const progression = this.theory.generateChordProgression(key, chordStyle as any);
-    const chords = this.generateChords(progression, style === 'ambient' ? 'pad' : 'stab');
+    const chords = this.generateChords(progression, resolvedStyle === 'ambient' ? 'pad' : 'stab');
     
-    return `// ${style} pattern in ${key} at ${bpm} BPM
+    return `// ${resolvedStyle} pattern in ${key} at ${bpm} BPM
 setcpm(${bpm})
 
 stack(
@@ -168,6 +338,260 @@ stack(
   // Melody
   ${melody}.struct("~ 1 ~ 1 1 ~ 1 ~").delay(0.25).room(0.3).gain(0.5)
 ).gain(0.8)`;
+  }
+
+  // ========================================
+  // INTELLIGENT DNB GENERATOR
+  // Style: LTJ Bukem, Good Looking Records
+  // ========================================
+  private generateIntelligentDnB(key: string, tempo: number): string {
+    const safeKey = key.toLowerCase();
+    const fourth = this.getFourth(safeKey);
+    const seventh = this.getMinorSeventh(safeKey);
+    const third = this.getMinorThird(safeKey);
+    
+    return `// Intelligent DnB in ${key} at ${tempo} BPM
+// Style: LTJ Bukem / Good Looking Records
+setcps(${tempo}/60)
+samples('github:tidalcycles/dirt-samples')
+
+let chords = chord("<${safeKey}m9 ${fourth}m9 ${seventh}m9 ${third}maj7>/4").dict('ireal')
+
+stack(
+  // === DRUMS - Rolling break with ghost notes ===
+  s("breaks165")
+    .fit()
+    .slice(8, "0 0 6 3 0 2 6 7")
+    .gain(0.7)
+    .room(0.2),
+
+  // Ghost break layer
+  s("breaks165")
+    .fit()
+    .chop(16)
+    .gain(0.12)
+    .hpf(3000)
+    .room(0.4)
+    .pan(perlin.range(0.3, 0.7)),
+
+  // Kick reinforcement
+  s("bd ~ ~ ~ [~ bd] ~ bd ~")
+    .bank("RolandTR909")
+    .gain(0.45)
+    .lpf(100),
+
+  // Open hat accents
+  s("~ ~ ~ oh ~ ~ oh ~")
+    .bank("RolandTR909")
+    .gain(0.28)
+    .cut(1)
+    .room(0.35),
+
+  // === BASS - Deep sine sub ===
+  note("<${safeKey}1 ~ ${safeKey}1 ~> <${fourth}1 ~ ~ ${fourth}1> <${seventh}0 ~ ${seventh}0 ~> <${third}1 ~ ~ ~>")
+    .s("sine")
+    .gain(0.65)
+    .lpf(80)
+    .attack(0.01)
+    .decay(0.2)
+    .sustain(0.5)
+    .release(0.4),
+
+  // === CHORDS - Jazz voicings ===
+  chords.voicing()
+    .s("gm_epiano1")
+    .gain(0.3)
+    .room(0.5)
+    .delay(0.3)
+    .delaytime(0.375)
+    .delayfeedback(0.32)
+    .lpf(4500),
+
+  // === ATMOSPHERE - Ethereal strings ===
+  chords.voicing()
+    .s("gm_strings")
+    .attack(2)
+    .sustain(0.7)
+    .release(3)
+    .gain(0.18)
+    .room(0.7)
+    .size(0.85)
+    .lpf(3000)
+    .hpf(300)
+)`;
+  }
+
+  // ========================================
+  // TRIP HOP GENERATOR
+  // Style: Portishead, Massive Attack, Flying Lotus
+  // ========================================
+  private generateTripHop(key: string, tempo: number): string {
+    const safeKey = key.toLowerCase();
+    const fourth = this.getFourth(safeKey);
+    const fifth = this.getFifth(safeKey);
+    const seventh = this.getMinorSeventh(safeKey);
+    
+    return `// Trip Hop in ${key} at ${tempo} BPM
+// Style: Portishead / Massive Attack
+setcps(${tempo}/60/2)
+
+stack(
+  // === DRUMS - Slow, heavy, dusty ===
+  
+  // Main beat - half time feel
+  s("bd ~ [~ bd] ~ bd ~ ~ ~")
+    .gain(0.85)
+    .lpf(150)
+    .room(0.3),
+
+  // Snare - heavy with room
+  s("~ ~ ~ ~ sd ~ ~ ~")
+    .bank("RolandTR808")
+    .gain(0.75)
+    .room(0.5)
+    .size(0.6),
+
+  // Ghost snares
+  s("~ ~ ~ sd:3? ~ ~ sd:2? ~")
+    .bank("RolandTR808")
+    .gain(0.2)
+    .room(0.4),
+
+  // Dusty hats
+  s("hh*8")
+    .gain(perlin.range(0.15, 0.3))
+    .hpf(5000)
+    .room(0.3)
+    .pan(perlin.range(0.3, 0.7).slow(4)),
+
+  // === BASS - Deep and moody ===
+  note("<${safeKey}1 ~ ~ ${safeKey}1> <~ ${fourth}1 ~ ~> <${fifth}1 ~ ${safeKey}1 ~> <~ ~ ${fourth}1 ~>")
+    .s("sine")
+    .gain(0.7)
+    .lpf(120)
+    .attack(0.02)
+    .decay(0.3)
+    .sustain(0.6)
+    .release(0.8)
+    .room(0.3),
+
+  // === KEYS - Dark Rhodes ===
+  chord("<${safeKey}m7 ${fourth}m7 ${fifth}m7 ${seventh}maj7>/4")
+    .dict('ireal')
+    .voicing()
+    .s("gm_epiano1")
+    .gain(0.25)
+    .room(0.5)
+    .lpf(2500)
+    .delay(0.4)
+    .delaytime(0.666)
+    .delayfeedback(0.35),
+
+  // === ATMOSPHERE - Dark pad ===
+  chord("<${safeKey}m7 ${fourth}m7>/8")
+    .dict('ireal')
+    .voicing()
+    .s("sawtooth")
+    .attack(3)
+    .sustain(0.6)
+    .release(4)
+    .lpf(sine.range(300, 800).slow(16))
+    .lpq(0.5)
+    .gain(0.12)
+    .room(0.8)
+    .size(0.9),
+
+  // === TEXTURE - Vinyl crackle vibe ===
+  s("hh:8*16")
+    .gain(0.03)
+    .hpf(8000)
+    .room(0.2)
+)`;
+  }
+
+  // ========================================
+  // BOOM BAP GENERATOR
+  // Style: DJ Premier, Alchemist, Daringer, Hit-Boy
+  // ========================================
+  private generateBoomBap(key: string, tempo: number): string {
+    const safeKey = key.toLowerCase();
+    const fourth = this.getFourth(safeKey);
+    const fifth = this.getFifth(safeKey);
+    const seventh = this.getMinorSeventh(safeKey);
+    const minorThird = this.getMinorThird(safeKey);
+    
+    return `// Boom Bap in ${key} at ${tempo} BPM
+// Style: DJ Premier / Alchemist / Daringer
+setcps(${tempo}/60/2)
+
+stack(
+  // === DRUMS - Hard hitting, swing ===
+  
+  // Main kick pattern
+  s("bd ~ ~ [~ bd] sd ~ ~ ~, bd ~ ~ bd sd ~ [bd bd] ~")
+    .gain(0.9)
+    .lpf(200)
+    .room(0.15),
+
+  // Layered snare for crack
+  s("~ ~ ~ ~ sd:3 ~ ~ ~")
+    .gain(0.35)
+    .hpf(200)
+    .room(0.25),
+
+  // Crispy hats
+  s("[~ hh]*8")
+    .gain(0.5)
+    .hpf(4000)
+    .room(0.2),
+
+  // Open hat accents
+  s("~ ~ oh ~ ~ ~ ~ oh:2")
+    .gain(0.3)
+    .room(0.35)
+    .cut(1),
+
+  // === BASS - Punchy and warm ===
+  note("<${safeKey}1 ~ ${safeKey}1 ~> <${safeKey}1 ${fourth}1 ~ ~> <${safeKey}1 ~ ${fifth}1 ~> <${fourth}1 ~ ${safeKey}1 ~>")
+    .s("sawtooth")
+    .gain(0.65)
+    .lpf(180)
+    .attack(0.01)
+    .decay(0.15)
+    .sustain(0.4)
+    .release(0.3),
+
+  // === CHOPS - Soul sample style ===
+  chord("<${safeKey}m7 ~ ${fourth}m7 ~> <${seventh}maj7 ~ ${minorThird}maj7 ~>/2")
+    .dict('ireal')
+    .voicing()
+    .s("gm_epiano1")
+    .gain(0.4)
+    .room(0.3)
+    .lpf(3000)
+    .hpf(200),
+
+  // === STRINGS - Cinematic stabs ===
+  chord("<${safeKey}m7 ~ ~ ~> <~ ~ ${fourth}m7 ~>/4")
+    .dict('ireal')
+    .voicing()
+    .s("gm_strings")
+    .struct("1 ~ ~ ~ ~ 1? ~ ~")
+    .attack(0.1)
+    .release(0.8)
+    .gain(0.25)
+    .room(0.4)
+    .lpf(4000)
+    .hpf(300),
+
+  // === HORNS - Optional stab ===
+  note("<${safeKey}4 ${minorThird}4 ${fourth}4 ${safeKey}4>/8")
+    .s("gm_brass")
+    .struct("~ ~ ~ ~ 1 ~ ~ ~")
+    .gain(0.2)
+    .room(0.3)
+    .lpf(3500)
+).swing(0.08)`;
   }
 
   /**
@@ -200,7 +624,10 @@ stack(
       house: `s("bd*4, cp*2, hh*16").fast(${bars})`,
       dnb: `s("bd*8, sn*8").fast(${bars * 2})`,
       trap: `s("bd*4, hh*32").fast(${bars})`,
-      breakbeat: `s("bd cp bd cp, hh*8").iter(4).fast(${bars})`
+      breakbeat: `s("bd cp bd cp, hh*8").iter(4).fast(${bars})`,
+      intelligent_dnb: `s("breaks165").fit().slice(16, "0 2 4 6 8 10 12 14 1 3 5 7 9 11 13 15").gain(0.7).fast(${bars})`,
+      trip_hop: `s("bd ~ sd ~, hh*4").room(0.5).fast(${bars})`,
+      boom_bap: `s("bd sd bd sd, hh*8").swing(0.1).fast(${bars})`
     };
     
     return fills[style] || fills.techno;
