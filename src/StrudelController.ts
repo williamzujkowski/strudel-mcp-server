@@ -1,4 +1,6 @@
 import { chromium, Browser, Page } from 'playwright';
+import * as path from 'path';
+import { promises as fs } from 'fs';
 import { AudioAnalyzer } from './AudioAnalyzer.js';
 import { PatternValidator, ValidationResult } from './utils/PatternValidator.js';
 import { ErrorRecovery } from './utils/ErrorRecovery.js';
@@ -673,8 +675,9 @@ export class StrudelController {
 
   /**
    * Takes a screenshot of the current browser state
-   * @param filename - Optional filename for the screenshot
-   * @returns Path to saved screenshot or base64 data
+   * Screenshots are saved to the tmp/ directory by default
+   * @param filename - Optional filename for the screenshot (saved in tmp/ if no path specified)
+   * @returns Path to saved screenshot
    * @throws {Error} When browser not initialized
    */
   async takeScreenshot(filename?: string): Promise<string> {
@@ -683,9 +686,21 @@ export class StrudelController {
     }
 
     try {
-      const path = filename || `strudel-screenshot-${Date.now()}.png`;
-      await this._page.screenshot({ path, fullPage: false });
-      return `Screenshot saved to ${path}`;
+      // Default to tmp/ directory for screenshots
+      const tmpDir = path.join(process.cwd(), 'tmp');
+      await fs.mkdir(tmpDir, { recursive: true });
+
+      // If filename has no path component, save to tmp/
+      let screenshotPath: string;
+      if (filename && path.dirname(filename) !== '.') {
+        screenshotPath = filename;
+      } else {
+        const name = filename || `strudel-screenshot-${Date.now()}.png`;
+        screenshotPath = path.join(tmpDir, name);
+      }
+
+      await this._page.screenshot({ path: screenshotPath, fullPage: false });
+      return `Screenshot saved to ${screenshotPath}`;
     } catch (error: any) {
       this.logger.error('Failed to take screenshot', error);
       throw new Error(`Failed to take screenshot: ${error.message}`);
