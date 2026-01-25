@@ -9,6 +9,7 @@ import { StrudelController } from '../StrudelController.js';
 import { PatternStore } from '../PatternStore.js';
 import { MusicTheory } from '../services/MusicTheory.js';
 import { PatternGenerator } from '../services/PatternGenerator.js';
+import { GeminiService, CreativeFeedback, AudioFeedback } from '../services/GeminiService.js';
 import { readFileSync, existsSync } from 'fs';
 import { Logger } from '../utils/Logger.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
@@ -33,6 +34,7 @@ export class EnhancedMCPServerFixed {
   private store: PatternStore;
   private theory: MusicTheory;
   private generator: PatternGenerator;
+  private geminiService: GeminiService;
   private logger: Logger;
   private perfMonitor: PerformanceMonitor;
   private sessionHistory: string[] = [];
@@ -63,6 +65,7 @@ export class EnhancedMCPServerFixed {
     this.store = new PatternStore('./patterns');
     this.theory = new MusicTheory();
     this.generator = new PatternGenerator();
+    this.geminiService = new GeminiService();
     this.logger = new Logger();
     this.perfMonitor = new PerformanceMonitor();
     this.setupHandlers();
@@ -562,6 +565,19 @@ export class EnhancedMCPServerFixed {
             auto_play: { type: 'boolean', description: 'Start playback immediately (default: true)' }
           },
           required: ['style']
+        }
+      },
+
+      // AI Feedback Tools (#67)
+      {
+        name: 'get_pattern_feedback',
+        description: 'Get AI-powered creative feedback on the current pattern using Google Gemini. Analyzes pattern structure and optionally audio.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            includeAudio: { type: 'boolean', description: 'Include audio analysis (plays pattern briefly). Default: false' },
+            style: { type: 'string', description: 'Optional style hint for context (e.g., "techno", "ambient")' }
+          }
         }
       }
     ];
@@ -1287,6 +1303,10 @@ export class EnhancedMCPServerFixed {
           message: `Created ${args.style} pattern in ${args.key || 'C'}${shouldPlay ? ' - now playing' : ''}`
         };
 
+      // AI Feedback Tools (#67)
+      case 'get_pattern_feedback':
+        return await this.getPatternFeedback(args?.includeAudio || false, args?.style);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1420,6 +1440,210 @@ export class EnhancedMCPServerFixed {
       linesChanged,
       charsDiff: pattern2.length - pattern1.length
     };
+  }
+
+  /**
+   * Gets AI-powered creative feedback on the current pattern
+   * Uses Google Gemini for pattern analysis and optionally audio analysis
+   * @param includeAudio - Whether to include audio analysis (plays pattern briefly)
+   * @param style - Optional style hint for context
+   * @returns Feedback object with pattern_analysis and optionally audio_analysis
+   */
+  private async getPatternFeedback(
+    includeAudio: boolean,
+    style?: string
+  ): Promise<{
+    pattern_analysis?: CreativeFeedback;
+    audio_analysis?: AudioFeedback;
+    error?: string;
+    gemini_available: boolean;
+  }> {
+    // Check if Gemini is available
+    if (!this.geminiService.isAvailable()) {
+      return {
+        gemini_available: false,
+        error: 'Gemini API not configured. Set GEMINI_API_KEY environment variable to enable AI feedback.'
+      };
+    }
+
+    // Get current pattern
+    const pattern = await this.getCurrentPatternSafe();
+    if (!pattern || pattern.trim().length === 0) {
+      return {
+        gemini_available: true,
+        error: 'No pattern to analyze. Write a pattern first.'
+      };
+    }
+
+    const result: {
+      pattern_analysis?: CreativeFeedback;
+      audio_analysis?: AudioFeedback;
+      error?: string;
+      gemini_available: boolean;
+    } = {
+      gemini_available: true
+    };
+
+    // Get pattern analysis
+    try {
+      result.pattern_analysis = await this.geminiService.getCreativeFeedback(pattern);
+    } catch (error: any) {
+      this.logger.error('Pattern feedback failed', error);
+
+      // Handle rate limit errors gracefully
+      if (error.message?.includes('rate limit') || error.message?.includes('Rate limit')) {
+        return {
+          gemini_available: true,
+          error: 'Rate limit exceeded. Wait a minute before requesting more feedback.'
+        };
+      }
+
+      result.error = `Pattern analysis failed: ${error.message}`;
+    }
+
+    // Get audio analysis if requested
+    if (includeAudio && this.isInitialized) {
+      try {
+        // Capture audio by playing the pattern briefly
+        const audioBlob = await this.captureAudioSample();
+
+        if (audioBlob) {
+          result.audio_analysis = await this.geminiService.analyzeAudio(audioBlob, {
+            style: style,
+            duration: 5
+          });
+        } else {
+          this.logger.warn('Audio capture returned no data');
+        }
+      } catch (error: any) {
+        this.logger.error('Audio analysis failed', error);
+
+        // Don't fail the whole request if audio analysis fails
+        if (!result.error) {
+          result.error = `Audio analysis failed: ${error.message}`;
+        }
+      }
+    } else if (includeAudio && !this.isInitialized) {
+      if (!result.error) {
+        result.error = 'Audio analysis requires browser initialization. Run init first or set includeAudio to false.';
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Captures a brief audio sample from the playing pattern
+   * Plays the pattern for ~5 seconds and captures audio using MediaRecorder
+   * @returns Audio blob or null if capture failed
+   */
+  private async captureAudioSample(): Promise<Blob | null> {
+    if (!this._page) {
+      this.logger.warn('Cannot capture audio: page not available');
+      return null;
+    }
+
+    const page = this.controller.page;
+    if (!page) {
+      this.logger.warn('Cannot capture audio: controller page not available');
+      return null;
+    }
+
+    try {
+      // Inject audio capture code and start recording
+      const audioData = await page.evaluate(async () => {
+        return new Promise<string | null>((resolve) => {
+          const analyzer = (window as any).strudelAudioAnalyzer;
+
+          if (!analyzer || !analyzer.analyser) {
+            resolve(null);
+            return;
+          }
+
+          try {
+            const audioCtx = analyzer.analyser.context as AudioContext;
+            const destination = audioCtx.createMediaStreamDestination();
+
+            // Connect analyzer to destination for recording
+            analyzer.analyser.connect(destination);
+
+            const mediaRecorder = new MediaRecorder(destination.stream, {
+              mimeType: 'audio/webm;codecs=opus'
+            });
+
+            const chunks: Blob[] = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+              if (e.data.size > 0) {
+                chunks.push(e.data);
+              }
+            };
+
+            mediaRecorder.onstop = async () => {
+              // Disconnect to avoid audio routing issues
+              try {
+                analyzer.analyser.disconnect(destination);
+              } catch (e) {
+                // Ignore disconnect errors
+              }
+
+              if (chunks.length === 0) {
+                resolve(null);
+                return;
+              }
+
+              const blob = new Blob(chunks, { type: 'audio/webm' });
+
+              // Convert to base64 for transport
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve(base64.split(',')[1] || null);
+              };
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            };
+
+            // Start recording
+            mediaRecorder.start();
+
+            // Record for 5 seconds
+            setTimeout(() => {
+              if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+              }
+            }, 5000);
+
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      });
+
+      if (!audioData) {
+        return null;
+      }
+
+      // Convert base64 back to Blob
+      const binaryString = atob(audioData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      return new Blob([bytes], { type: 'audio/webm' });
+
+    } catch (error: any) {
+      this.logger.error('Audio capture failed', error);
+      return null;
+    }
+  }
+
+  /**
+   * Getter for page access in audio capture
+   */
+  private get _page() {
+    return this.controller.page;
   }
 
   async run() {

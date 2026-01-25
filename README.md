@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
-[![Tools](https://img.shields.io/badge/tools-52-green.svg)]()
+[![Tools](https://img.shields.io/badge/tools-53-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
@@ -36,7 +36,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 ## ✨ Features
 
 ### 🎹 Complete Music Control
-- **52 MCP Tools**: Comprehensive suite for music creation and manipulation
+- **53 MCP Tools**: Comprehensive suite for music creation and manipulation
 - **Real Browser Automation**: Direct control of Strudel.cc through Playwright
 - **Live Audio Analysis**: Real-time frequency analysis via Web Audio API
 - **Pattern Generation**: AI-powered creation across 8+ music genres
@@ -148,7 +148,7 @@ Then ask Claude:
 - "Generate a jazz chord progression in F major"
 - "Create a drum & bass pattern at 174 BPM"
 
-## 🛠️ Available Tools (52)
+## 🛠️ Available Tools (53)
 
 ### Core Control (10 tools)
 | Tool | Description | Example |
@@ -237,6 +237,13 @@ Then ask Claude:
 |------|-------------|
 | `performance_report` | Timing metrics and bottleneck analysis |
 | `memory_usage` | Memory consumption statistics |
+
+### AI Feedback (1 tool)
+| Tool | Description | Options |
+|------|-------------|---------|
+| `get_pattern_feedback` | AI-powered creative feedback via Gemini | `includeAudio`: analyze audio (default: false), `style`: hint for context |
+
+> **Note:** Requires `GEMINI_API_KEY` environment variable. Returns pattern complexity, estimated style, strengths, and suggestions.
 
 ## 🎵 Usage Examples
 
