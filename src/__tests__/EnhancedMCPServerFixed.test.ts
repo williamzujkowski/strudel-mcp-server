@@ -11,6 +11,7 @@ import { PatternStore } from '../PatternStore';
 import { MusicTheory } from '../services/MusicTheory';
 import { PatternGenerator } from '../services/PatternGenerator';
 import { GeminiService } from '../services/GeminiService';
+import { AudioCaptureService } from '../services/AudioCaptureService';
 
 // Mock all dependencies
 jest.mock('../StrudelController');
@@ -18,6 +19,7 @@ jest.mock('../PatternStore');
 jest.mock('../services/MusicTheory');
 jest.mock('../services/PatternGenerator');
 jest.mock('../services/GeminiService');
+jest.mock('../services/AudioCaptureService');
 jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('{"headless": true}'),
   existsSync: jest.fn().mockReturnValue(true)
@@ -1478,6 +1480,199 @@ describe('EnhancedMCPServerFixed', () => {
         });
 
         expect(result).toContain('not found');
+      });
+    });
+
+    describe('Audio Capture Tools (#72)', () => {
+      let mockAudioCaptureService: jest.Mocked<AudioCaptureService>;
+
+      beforeEach(() => {
+        // Setup mock AudioCaptureService
+        mockAudioCaptureService = {
+          injectRecorder: jest.fn().mockResolvedValue(undefined),
+          startCapture: jest.fn().mockResolvedValue(undefined),
+          stopCapture: jest.fn().mockResolvedValue({
+            blob: new Blob(['test audio data'], { type: 'audio/webm' }),
+            duration: 5000,
+            format: 'audio/webm;codecs=opus',
+            timestamp: Date.now()
+          }),
+          captureForDuration: jest.fn().mockResolvedValue({
+            blob: new Blob(['test audio data'], { type: 'audio/webm' }),
+            duration: 5000,
+            format: 'audio/webm;codecs=opus',
+            timestamp: Date.now()
+          }),
+          isCapturing: jest.fn().mockReturnValue(false),
+          getElapsedTime: jest.fn().mockReturnValue(0),
+          isConnected: jest.fn().mockResolvedValue(true),
+          clearChunks: jest.fn().mockResolvedValue(undefined),
+          getMimeType: jest.fn().mockReturnValue('audio/webm;codecs=opus')
+        } as any;
+
+        (AudioCaptureService as jest.Mock).mockImplementation(() => mockAudioCaptureService);
+      });
+
+      test('start_audio_capture should require initialization', async () => {
+        const uninitServer = new EnhancedMCPServerFixed();
+        const result = await (uninitServer as any).executeTool('start_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('not initialized');
+      });
+
+      test('start_audio_capture should start capture when initialized', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('start_audio_capture', {});
+
+        expect(result.success).toBe(true);
+        expect(result.message).toContain('Audio capture started');
+        expect(result.format).toBe('webm');
+      });
+
+      test('start_audio_capture should use custom format', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('start_audio_capture', {
+          format: 'opus'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.format).toBe('opus');
+      });
+
+      test('start_audio_capture should fail if capture already in progress', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.isCapturing.mockReturnValue(true);
+
+        const result = await (server as any).executeTool('start_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('already in progress');
+      });
+
+      test('stop_audio_capture should require initialization', async () => {
+        const uninitServer = new EnhancedMCPServerFixed();
+        const result = await (uninitServer as any).executeTool('stop_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('not initialized');
+      });
+
+      test('stop_audio_capture should return encoded audio', async () => {
+        await (server as any).executeTool('init', {});
+        // Start capture first
+        await (server as any).executeTool('start_audio_capture', {});
+        mockAudioCaptureService.isCapturing.mockReturnValue(true);
+
+        const result = await (server as any).executeTool('stop_audio_capture', {});
+
+        expect(result.success).toBe(true);
+        expect(result.audio).toBeDefined();
+        expect(result.duration).toBe(5000);
+        expect(result.format).toBe('audio/webm;codecs=opus');
+      });
+
+      test('stop_audio_capture should fail if no capture in progress', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.isCapturing.mockReturnValue(false);
+
+        const result = await (server as any).executeTool('stop_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('No audio capture in progress');
+      });
+
+      test('capture_audio_sample should require initialization', async () => {
+        const uninitServer = new EnhancedMCPServerFixed();
+        const result = await (uninitServer as any).executeTool('capture_audio_sample', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('not initialized');
+      });
+
+      test('capture_audio_sample should capture with default duration', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('capture_audio_sample', {});
+
+        expect(result.success).toBe(true);
+        expect(result.audio).toBeDefined();
+        expect(result.duration).toBe(5000);
+        expect(mockAudioCaptureService.captureForDuration).toHaveBeenCalledWith(
+          expect.anything(),
+          5000
+        );
+      });
+
+      test('capture_audio_sample should capture with custom duration', async () => {
+        await (server as any).executeTool('init', {});
+        const result = await (server as any).executeTool('capture_audio_sample', {
+          duration: 3000
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockAudioCaptureService.captureForDuration).toHaveBeenCalledWith(
+          expect.anything(),
+          3000
+        );
+      });
+
+      test('capture_audio_sample should validate duration range', async () => {
+        await (server as any).executeTool('init', {});
+
+        // Too short
+        const resultShort = await (server as any).executeTool('capture_audio_sample', {
+          duration: 50
+        });
+        expect(resultShort.success).toBe(false);
+        expect(resultShort.message).toContain('Duration must be between');
+
+        // Too long
+        const resultLong = await (server as any).executeTool('capture_audio_sample', {
+          duration: 120000
+        });
+        expect(resultLong.success).toBe(false);
+        expect(resultLong.message).toContain('Duration must be between');
+      });
+
+      test('capture_audio_sample should fail if capture already in progress', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.isCapturing.mockReturnValue(true);
+
+        const result = await (server as any).executeTool('capture_audio_sample', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('already in progress');
+      });
+
+      test('start_audio_capture should handle errors gracefully', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.startCapture.mockRejectedValue(new Error('Audio not connected'));
+
+        const result = await (server as any).executeTool('start_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Failed to start audio capture');
+      });
+
+      test('stop_audio_capture should handle errors gracefully', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.isCapturing.mockReturnValue(true);
+        mockAudioCaptureService.stopCapture.mockRejectedValue(new Error('No data captured'));
+
+        const result = await (server as any).executeTool('stop_audio_capture', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Failed to stop audio capture');
+      });
+
+      test('capture_audio_sample should handle errors gracefully', async () => {
+        await (server as any).executeTool('init', {});
+        mockAudioCaptureService.captureForDuration.mockRejectedValue(new Error('Capture failed'));
+
+        const result = await (server as any).executeTool('capture_audio_sample', {});
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Failed to capture audio sample');
       });
     });
   });

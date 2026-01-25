@@ -10,6 +10,7 @@ import { PatternStore } from '../PatternStore.js';
 import { MusicTheory } from '../services/MusicTheory.js';
 import { PatternGenerator } from '../services/PatternGenerator.js';
 import { GeminiService, CreativeFeedback, AudioFeedback } from '../services/GeminiService.js';
+import { AudioCaptureService } from '../services/AudioCaptureService.js';
 import { readFileSync, existsSync } from 'fs';
 import { Logger } from '../utils/Logger.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
@@ -35,6 +36,7 @@ export class EnhancedMCPServerFixed {
   private theory: MusicTheory;
   private generator: PatternGenerator;
   private geminiService: GeminiService;
+  private audioCaptureService: AudioCaptureService | null = null;
   private logger: Logger;
   private perfMonitor: PerformanceMonitor;
   private sessionHistory: string[] = [];
@@ -578,6 +580,34 @@ export class EnhancedMCPServerFixed {
           properties: {
             includeAudio: { type: 'boolean', description: 'Include audio analysis (plays pattern briefly). Default: false' },
             style: { type: 'string', description: 'Optional style hint for context (e.g., "techno", "ambient")' }
+          }
+        }
+      },
+
+      // Audio Capture Tools (#72)
+      {
+        name: 'start_audio_capture',
+        description: 'Start capturing audio from Strudel output. Audio must be playing for capture to work.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            format: { type: 'string', enum: ['webm', 'opus'], description: 'Audio format (default: webm)' },
+            maxDuration: { type: 'number', description: 'Maximum capture duration in milliseconds' }
+          }
+        }
+      },
+      {
+        name: 'stop_audio_capture',
+        description: 'Stop audio capture and return the recorded audio as base64-encoded data.',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'capture_audio_sample',
+        description: 'Capture a fixed-duration audio sample from Strudel output. Audio must be playing.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            duration: { type: 'number', description: 'Duration in milliseconds (default: 5000)' }
           }
         }
       }
@@ -1335,6 +1365,16 @@ export class EnhancedMCPServerFixed {
       case 'get_pattern_feedback':
         return await this.getPatternFeedback(args?.includeAudio || false, args?.style);
 
+      // Audio Capture Tools (#72)
+      case 'start_audio_capture':
+        return await this.startAudioCapture(args?.format, args?.maxDuration);
+
+      case 'stop_audio_capture':
+        return await this.stopAudioCapture();
+
+      case 'capture_audio_sample':
+        return await this.captureAudioSampleTool(args?.duration);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1672,6 +1712,163 @@ export class EnhancedMCPServerFixed {
    */
   private get _page() {
     return this.controller.page;
+  }
+
+  /**
+   * Lazily initializes and returns the AudioCaptureService
+   * Injects recorder into page on first use
+   */
+  private async getAudioCaptureService(): Promise<AudioCaptureService> {
+    if (!this.isInitialized || !this._page) {
+      throw new Error('Browser not initialized. Run init first.');
+    }
+
+    if (!this.audioCaptureService) {
+      this.audioCaptureService = new AudioCaptureService();
+      await this.audioCaptureService.injectRecorder(this._page);
+    }
+
+    return this.audioCaptureService;
+  }
+
+  /**
+   * Starts audio capture from Strudel output
+   * @param format - Audio format ('webm' or 'opus')
+   * @param maxDuration - Maximum capture duration in ms (optional)
+   * @returns Status message
+   */
+  private async startAudioCapture(
+    format?: 'webm' | 'opus',
+    maxDuration?: number
+  ): Promise<{ success: boolean; message: string; format?: string }> {
+    try {
+      const captureService = await this.getAudioCaptureService();
+
+      if (captureService.isCapturing()) {
+        return {
+          success: false,
+          message: 'Audio capture already in progress. Stop it first.'
+        };
+      }
+
+      await captureService.startCapture(this._page!, { format });
+
+      return {
+        success: true,
+        message: 'Audio capture started. Use stop_audio_capture to get the recorded audio.',
+        format: format || 'webm'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to start audio capture: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Stops audio capture and returns base64-encoded audio data
+   * @returns Captured audio as base64 with metadata
+   */
+  private async stopAudioCapture(): Promise<{
+    success: boolean;
+    message: string;
+    audio?: string;
+    duration?: number;
+    format?: string;
+  }> {
+    try {
+      const captureService = await this.getAudioCaptureService();
+
+      if (!captureService.isCapturing()) {
+        return {
+          success: false,
+          message: 'No audio capture in progress. Start capture first.'
+        };
+      }
+
+      const result = await captureService.stopCapture(this._page!);
+
+      // Convert Blob to base64
+      const arrayBuffer = await result.blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+
+      return {
+        success: true,
+        message: `Captured ${result.duration}ms of audio`,
+        audio: base64,
+        duration: result.duration,
+        format: result.format
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to stop audio capture: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Captures a fixed-duration audio sample (MCP tool handler)
+   * @param duration - Duration in milliseconds (default: 5000)
+   * @returns Captured audio as base64 with metadata
+   */
+  private async captureAudioSampleTool(duration?: number): Promise<{
+    success: boolean;
+    message: string;
+    audio?: string;
+    duration?: number;
+    format?: string;
+  }> {
+    const durationMs = duration || 5000;
+
+    // Validate duration
+    if (durationMs < 100 || durationMs > 60000) {
+      return {
+        success: false,
+        message: 'Duration must be between 100ms and 60000ms (1 minute)'
+      };
+    }
+
+    try {
+      const captureService = await this.getAudioCaptureService();
+
+      if (captureService.isCapturing()) {
+        return {
+          success: false,
+          message: 'Audio capture already in progress. Stop it first.'
+        };
+      }
+
+      const result = await captureService.captureForDuration(this._page!, durationMs);
+
+      // Convert Blob to base64
+      const arrayBuffer = await result.blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+
+      return {
+        success: true,
+        message: `Captured ${result.duration}ms audio sample`,
+        audio: base64,
+        duration: result.duration,
+        format: result.format
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to capture audio sample: ${error.message}`
+      };
+    }
   }
 
   async run() {
