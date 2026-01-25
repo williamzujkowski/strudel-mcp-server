@@ -15,9 +15,13 @@ export default {
         esModuleInterop: true
       }
     }],
+    '^.+\\.m?js$': ['ts-jest', {
+      useESM: true,
+      isolatedModules: true
+    }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!@modelcontextprotocol)',
+    'node_modules/(?!(@modelcontextprotocol|@strudel|@kabelsalat|fraction\\.js|acorn|escodegen|estree-walker))',
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

@@ -22,6 +22,7 @@ jest.mock('../services/PatternGenerator');
 jest.mock('../services/GeminiService');
 jest.mock('../services/AudioCaptureService');
 jest.mock('../services/SessionManager');
+jest.mock('../services/StrudelEngine');
 jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('{"headless": true}'),
   existsSync: jest.fn().mockReturnValue(true)
@@ -125,7 +126,13 @@ describe('EnhancedMCPServerFixed', () => {
 
     mockTheory = {
       generateScale: jest.fn().mockReturnValue(['C', 'D', 'E', 'F', 'G', 'A', 'B']),
-      generateChordProgression: jest.fn().mockReturnValue('I-V-vi-IV')
+      generateChordProgression: jest.fn().mockReturnValue('I-V-vi-IV'),
+      getNote: jest.fn().mockImplementation((key: string, semitones: number) => {
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const rootIndex = notes.indexOf(key.toUpperCase());
+        const targetIndex = (rootIndex + semitones + 12) % 12;
+        return notes[targetIndex];
+      })
     } as any;
 
     mockGenerator = {
@@ -1779,6 +1786,334 @@ describe('EnhancedMCPServerFixed', () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain('Session not found');
+      });
+    });
+
+
+    // Shift Mood Tool (#80)
+    describe('Shift Mood Tool (#80)', () => {
+      test('shift_mood should handle empty pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'dark'
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('No pattern');
+      });
+
+      test('shift_mood should transform pattern to dark mood', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'dark'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.target_mood).toBe('dark');
+        expect(result.applied_effects).toBeDefined();
+        expect(result.applied_effects.length).toBeGreaterThan(0);
+        expect(mockController.writePattern).toHaveBeenCalled();
+        expect(mockController.play).toHaveBeenCalled();
+      });
+
+      test('shift_mood should transform pattern to euphoric mood', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('note("c4 e4 g4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'euphoric',
+          intensity: 0.8
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.target_mood).toBe('euphoric');
+        expect(result.intensity).toBe(0.8);
+      });
+
+      test('shift_mood should handle all valid moods', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd cp")');
+
+        const validMoods = ['dark', 'euphoric', 'melancholic', 'aggressive', 'dreamy', 'peaceful', 'energetic'];
+
+        for (const mood of validMoods) {
+          const result = await (server as any).executeTool('shift_mood', {
+            target_mood: mood
+          });
+          expect(result.success).toBe(true);
+          expect(result.target_mood).toBe(mood);
+        }
+      });
+
+      test('shift_mood should reject invalid mood', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'invalid_mood'
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Unknown mood');
+      });
+
+      test('shift_mood should respect auto_play=false', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+        mockController.play.mockClear();
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'peaceful',
+          auto_play: false
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockController.play).not.toHaveBeenCalled();
+      });
+
+      test('shift_mood should use default intensity 0.5', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'melancholic'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.intensity).toBe(0.5);
+      });
+
+      test('shift_mood should reject out of range intensity', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'aggressive',
+          intensity: 1.5
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('between 0 and 1');
+      });
+
+      test('shift_mood should apply multiple effects based on profile', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('shift_mood', {
+          target_mood: 'dreamy',
+          intensity: 1.0
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.applied_effects).toBeDefined();
+        expect(result.applied_effects.length).toBeGreaterThanOrEqual(3);
+      });
+    });
+
+    // AI Collaborative Jamming Tests (#82)
+    describe('Jam With Tool (#82)', () => {
+      test('jam_with should fail with invalid layer type', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'invalid'
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Invalid layer type');
+      });
+
+      test('jam_with should fail with no pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'drums'
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('No pattern to jam with');
+      });
+
+      test('jam_with should add drums layer to pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('note("c3 d3 e3").s("sine")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'drums'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.layer).toBe('drums');
+        expect(result.newLayer).toBeDefined();
+        expect(mockController.writePattern).toHaveBeenCalled();
+      });
+
+      test('jam_with should add bass layer to pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.layer).toBe('bass');
+        expect(result.newLayer).toBeDefined();
+      });
+
+      test('jam_with should add melody layer to pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'melody'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.layer).toBe('melody');
+      });
+
+      test('jam_with should add pad layer to pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'pad'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.layer).toBe('pad');
+      });
+
+      test('jam_with should add texture layer to pattern', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'texture'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.layer).toBe('texture');
+      });
+
+      test('jam_with should detect tempo from setcpm', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('setcpm(140)\ns("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.detected.tempo).toBe(140);
+      });
+
+      test('jam_with should detect key from note patterns', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('note("a3 c4 e4").s("sine")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(result.success).toBe(true);
+        expect(['A', 'C', 'E']).toContain(result.detected.key);
+      });
+
+      test('jam_with should detect existing layers', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4, hh*8")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.detected.existingLayers).toContain('drums');
+      });
+
+      test('jam_with should accept style_hint parameter', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'melody',
+          style_hint: 'jazz'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.message).toContain('jazz');
+      });
+
+      test('jam_with should auto-play by default', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        await (server as any).executeTool('jam_with', {
+          layer: 'drums'
+        });
+
+        expect(mockController.play).toHaveBeenCalled();
+      });
+
+      test('jam_with should not auto-play when disabled', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+        mockController.play.mockClear();
+
+        await (server as any).executeTool('jam_with', {
+          layer: 'drums',
+          auto_play: false
+        });
+
+        expect(mockController.play).not.toHaveBeenCalled();
+      });
+
+      test('jam_with should merge into existing stack()', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('stack(\n  s("bd*4"),\n  s("hh*8")\n)');
+
+        const result = await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockController.writePattern).toHaveBeenCalledWith(
+          expect.stringContaining('Jam bass layer')
+        );
+      });
+
+      test('jam_with should wrap non-stack pattern in stack()', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('s("bd*4")');
+
+        await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        expect(mockController.writePattern).toHaveBeenCalledWith(
+          expect.stringContaining('stack(')
+        );
+      });
+
+      test('jam_with should preserve tempo prefix when wrapping', async () => {
+        await (server as any).executeTool('init', {});
+        mockController.getCurrentPattern.mockResolvedValue('setcpm(140)\ns("bd*4")');
+
+        await (server as any).executeTool('jam_with', {
+          layer: 'bass'
+        });
+
+        const writtenPattern = mockController.writePattern.mock.calls[0][0];
+        expect(writtenPattern.startsWith('setcpm(140)')).toBe(true);
       });
     });
   });

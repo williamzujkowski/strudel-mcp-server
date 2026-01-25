@@ -17,6 +17,7 @@ import { readFileSync, existsSync } from 'fs';
 import { Logger } from '../utils/Logger.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
 import { InputValidator } from '../utils/InputValidator.js';
+import { StrudelEngine } from '../services/StrudelEngine.js';
 
 const configPath = './config.json';
 const config = existsSync(configPath) 
@@ -31,6 +32,51 @@ interface HistoryEntry {
   action: string;
 }
 
+/** Energy level configuration for set_energy tool (#81) */
+interface EnergyConfig {
+  tempoAdjust: number;  // Percentage adjustment (-20 to +20)
+  roomAmount: number;   // Reverb amount (0-1)
+  densityAdjust: string; // fast(), slow(), or empty
+  description: string;
+}
+
+/** Energy level presets for pattern energy adjustments (#81) */
+const ENERGY_LEVELS: Record<number, EnergyConfig> = {
+  0: { tempoAdjust: -20, roomAmount: 0.5, densityAdjust: '.slow(4)', description: 'minimal/ambient' },
+  1: { tempoAdjust: -15, roomAmount: 0.4, densityAdjust: '.slow(3)', description: 'very sparse' },
+  2: { tempoAdjust: -10, roomAmount: 0.3, densityAdjust: '.slow(2)', description: 'sparse' },
+  3: { tempoAdjust: -5, roomAmount: 0.2, densityAdjust: '.slow(1.5)', description: 'light' },
+  4: { tempoAdjust: 0, roomAmount: 0.15, densityAdjust: '', description: 'relaxed' },
+  5: { tempoAdjust: 0, roomAmount: 0.1, densityAdjust: '', description: 'normal' },
+  6: { tempoAdjust: 5, roomAmount: 0.08, densityAdjust: '', description: 'moderate' },
+  7: { tempoAdjust: 10, roomAmount: 0.05, densityAdjust: '.fast(1.25)', description: 'driving' },
+  8: { tempoAdjust: 15, roomAmount: 0.03, densityAdjust: '.fast(1.5)', description: 'intense' },
+  9: { tempoAdjust: 18, roomAmount: 0.02, densityAdjust: '.fast(1.75)', description: 'very intense' },
+  10: { tempoAdjust: 20, roomAmount: 0.01, densityAdjust: '.fast(2)', description: 'maximum' }
+};
+
+/** Mood profile for emotional pattern transformations (#80) */
+interface MoodProfile {
+  preferMinor: boolean;
+  tempoMod: number;
+  cutoffMod: number;
+  roomMod: number;
+  gainMod: number;
+  noteShift: number;
+  delayMod?: number;
+}
+
+/** Mood profiles for emotional transformations (#80) */
+const MOOD_PROFILES: Record<string, MoodProfile> = {
+  dark: { preferMinor: true, tempoMod: -0.1, cutoffMod: -200, roomMod: 0.2, gainMod: -0.1, noteShift: -12 },
+  euphoric: { preferMinor: false, tempoMod: 0.1, cutoffMod: 400, roomMod: 0.1, gainMod: 0.1, noteShift: 12 },
+  melancholic: { preferMinor: true, tempoMod: -0.15, cutoffMod: -100, roomMod: 0.3, gainMod: -0.05, noteShift: 0 },
+  aggressive: { preferMinor: false, tempoMod: 0.15, cutoffMod: 600, roomMod: -0.1, gainMod: 0.15, noteShift: 0 },
+  dreamy: { preferMinor: false, tempoMod: -0.2, cutoffMod: -300, roomMod: 0.4, delayMod: 0.3, gainMod: -0.1, noteShift: 0 },
+  peaceful: { preferMinor: false, tempoMod: -0.25, cutoffMod: -200, roomMod: 0.25, gainMod: -0.15, noteShift: 0 },
+  energetic: { preferMinor: false, tempoMod: 0.2, cutoffMod: 300, roomMod: 0, gainMod: 0.1, noteShift: 0 }
+};
+
 export class EnhancedMCPServerFixed {
   private server: Server;
   private controller: StrudelController;
@@ -43,6 +89,7 @@ export class EnhancedMCPServerFixed {
   private sessionManager: SessionManager;
   private logger: Logger;
   private perfMonitor: PerformanceMonitor;
+  private strudelEngine: StrudelEngine;
   private sessionHistory: string[] = [];
   private undoStack: string[] = [];
   private redoStack: string[] = [];
@@ -76,6 +123,7 @@ export class EnhancedMCPServerFixed {
     this.sessionManager = new SessionManager(config.headless);
     this.logger = new Logger();
     this.perfMonitor = new PerformanceMonitor();
+    this.strudelEngine = new StrudelEngine();
     this.setupHandlers();
   }
 
@@ -371,6 +419,33 @@ export class EnhancedMCPServerFixed {
         }
       },
 
+
+      // Mood Transformation Tool (#80)
+      {
+        name: 'shift_mood',
+        description: 'Transform current pattern to match a different emotional mood by adjusting tempo, effects, and note choices. Moods: dark, euphoric, melancholic, aggressive, dreamy, peaceful, energetic.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            target_mood: {
+              type: 'string',
+              enum: ['dark', 'euphoric', 'melancholic', 'aggressive', 'dreamy', 'peaceful', 'energetic'],
+              description: 'Target mood'
+            },
+            intensity: {
+              type: 'number',
+              minimum: 0,
+              maximum: 1,
+              description: 'How strongly to apply the mood transformation (0-1, default: 0.5)'
+            },
+            auto_play: {
+              type: 'boolean',
+              description: 'Start playback after transformation (default: true)'
+            }
+          },
+          required: ['target_mood']
+        }
+      },
       // Session Management (5)
       {
         name: 'save',
@@ -670,6 +745,61 @@ export class EnhancedMCPServerFixed {
             session_id: { type: 'string', description: 'Session identifier to set as default' }
           },
           required: ['session_id']
+        }
+      },
+
+      // Pattern Refinement Tools (#78, #81)
+      {
+        name: 'refine',
+        description: 'Incrementally refine the current pattern with simple directional commands. Supports: faster/slower (tempo), louder/quieter (gain), brighter/darker (filter cutoff), "more reverb"/drier (reverb). Auto-plays after applying refinement.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            direction: {
+              type: 'string',
+              description: 'Refinement direction: faster, slower, louder, quieter, brighter, darker, "more reverb", or drier'
+            }
+          },
+          required: ['direction']
+        }
+      },
+      {
+        name: 'set_energy',
+        description: 'Adjust the overall energy level of the current pattern on a 0-10 scale. 0: minimal/ambient, 1-2: sparse, 3-4: light/relaxed, 5-6: normal/moderate, 7-8: driving/intense, 9-10: maximum. Auto-plays after applying energy level.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            level: {
+              type: 'number',
+              description: 'Energy level from 0 (minimal) to 10 (maximum)'
+            }
+          },
+          required: ['level']
+        }
+      },
+
+      // AI Collaborative Jamming (#82)
+      {
+        name: 'jam_with',
+        description: 'AI generates a complementary layer to jam with your pattern. Analyzes current pattern to detect tempo, key, and existing layers, then generates a matching layer that fits musically.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            layer: {
+              type: 'string',
+              enum: ['drums', 'bass', 'melody', 'pad', 'texture'],
+              description: 'Type of layer to add: drums, bass, melody, pad, or texture'
+            },
+            style_hint: {
+              type: 'string',
+              description: 'Optional style guidance (e.g., "funky", "minimal", "atmospheric")'
+            },
+            auto_play: {
+              type: 'boolean',
+              description: 'Start playback after adding layer (default: true)'
+            }
+          },
+          required: ['layer']
         }
       }
     ];
@@ -1206,6 +1336,165 @@ export class EnhancedMCPServerFixed {
                  (validation.warnings.length > 0 ? `\nWarnings:\n${validation.warnings.join('\n')}` : '');
         }
 
+      // Local Pattern Tools (#83) - No browser required
+      case 'validate_pattern_local':
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
+        const localValidation = this.strudelEngine.validate(args.pattern);
+        return {
+          valid: localValidation.valid,
+          errors: localValidation.errors,
+          warnings: localValidation.warnings,
+          suggestions: localValidation.suggestions,
+          errorLocation: localValidation.errorLocation,
+          message: localValidation.valid
+            ? '✅ Pattern is valid'
+            : `❌ Pattern has ${localValidation.errors.length} error(s)`
+        };
+
+      case 'analyze_pattern_local':
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
+        const patternMetadata = this.strudelEngine.analyzePattern(args.pattern);
+        return {
+          ...patternMetadata,
+          message: `Pattern analysis: ${patternMetadata.eventsPerCycle} events/cycle, ` +
+                   `complexity ${(patternMetadata.complexity * 100).toFixed(0)}%` +
+                   (patternMetadata.bpm ? `, ${patternMetadata.bpm} BPM` : '')
+        };
+
+      case 'query_pattern_events':
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
+        const startCycle = args.start ?? 0;
+        const endCycle = args.end ?? 1;
+        if (startCycle >= endCycle) {
+          return { error: 'Start must be less than end' };
+        }
+        if (endCycle - startCycle > 16) {
+          return { error: 'Maximum range is 16 cycles to prevent excessive output' };
+        }
+        try {
+          const events = this.strudelEngine.queryEvents(args.pattern, startCycle, endCycle);
+          return {
+            count: events.length,
+            range: { start: startCycle, end: endCycle },
+            events: events.map((e: any) => ({
+              value: e.value,
+              start: e.start,
+              end: e.end,
+              duration: e.end - e.start
+            }))
+          };
+        } catch (error: any) {
+          return {
+            error: error.message,
+            suggestion: 'Check pattern syntax with validate_pattern_local first'
+          };
+        }
+
+      case 'transpile_pattern':
+        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
+        const transpileResult = this.strudelEngine.transpile(args.pattern);
+        if (transpileResult.success) {
+          return {
+            success: true,
+            transpiledCode: transpileResult.transpiledCode,
+            message: 'Pattern transpiled successfully'
+          };
+        } else {
+          return {
+            success: false,
+            error: transpileResult.error,
+            errorLocation: transpileResult.errorLocation,
+            message: 'Transpilation failed'
+          };
+        }
+
+
+      // Mood Transformation (#80)
+      case 'shift_mood':
+        const mood = args.target_mood?.toLowerCase()?.trim();
+        const moodProfile = MOOD_PROFILES[mood];
+
+        if (!moodProfile) {
+          return {
+            success: false,
+            error: `Unknown mood: ${args.target_mood}. Valid moods: ${Object.keys(MOOD_PROFILES).join(', ')}.`
+          };
+        }
+
+        const moodPattern = await this.getCurrentPatternSafe();
+        if (!moodPattern || moodPattern.trim().length === 0) {
+          return {
+            success: false,
+            error: 'No pattern to transform. Write a pattern first.'
+          };
+        }
+
+        const moodIntensity = args.intensity ?? 0.5;
+        if (moodIntensity < 0 || moodIntensity > 1) {
+          return {
+            success: false,
+            error: 'Intensity must be between 0 and 1.'
+          };
+        }
+
+        const appliedEffects: string[] = [];
+        let transformedPattern = moodPattern;
+
+        // Apply tempo modification
+        if (moodProfile.tempoMod !== 0) {
+          const tempoAdjust = 1 + (moodProfile.tempoMod * moodIntensity);
+          if (tempoAdjust > 1) {
+            transformedPattern += `.fast(${tempoAdjust.toFixed(2)})`;
+            appliedEffects.push(`tempo +${Math.round(moodProfile.tempoMod * 100 * moodIntensity)}%`);
+          } else {
+            transformedPattern += `.slow(${(1 / tempoAdjust).toFixed(2)})`;
+            appliedEffects.push(`tempo ${Math.round(moodProfile.tempoMod * 100 * moodIntensity)}%`);
+          }
+        }
+
+        // Apply cutoff modification
+        if (moodProfile.cutoffMod !== 0) {
+          const baseCutoff = 1000;
+          const newCutoff = Math.max(200, baseCutoff + (moodProfile.cutoffMod * moodIntensity));
+          transformedPattern += `.lpf(${Math.round(newCutoff)})`;
+          appliedEffects.push(`cutoff ${moodProfile.cutoffMod > 0 ? '+' : ''}${Math.round(moodProfile.cutoffMod * moodIntensity)}Hz`);
+        }
+
+        // Apply reverb modification
+        if (moodProfile.roomMod !== 0) {
+          const roomAmount = Math.max(0, Math.min(1, moodProfile.roomMod * moodIntensity));
+          transformedPattern += `.room(${roomAmount.toFixed(2)})`;
+          appliedEffects.push(`reverb ${roomAmount.toFixed(2)}`);
+        }
+
+        // Apply delay if specified
+        if (moodProfile.delayMod && moodProfile.delayMod > 0) {
+          const delayAmount = moodProfile.delayMod * moodIntensity;
+          transformedPattern += `.delay(${delayAmount.toFixed(2)})`;
+          appliedEffects.push(`delay ${delayAmount.toFixed(2)}`);
+        }
+
+        // Apply gain modification
+        if (moodProfile.gainMod !== 0) {
+          const gainAdjust = 1 + (moodProfile.gainMod * moodIntensity);
+          transformedPattern += `.gain(${gainAdjust.toFixed(2)})`;
+          appliedEffects.push(`gain ${moodProfile.gainMod > 0 ? '+' : ''}${Math.round(moodProfile.gainMod * 100 * moodIntensity)}%`);
+        }
+
+        await this.writePatternSafe(transformedPattern);
+
+        const shouldPlayMood = args.auto_play !== false;
+        if (shouldPlayMood && this.isInitialized) {
+          await this.controller.play();
+        }
+
+        return {
+          success: true,
+          target_mood: mood,
+          intensity: moodIntensity,
+          applied_effects: appliedEffects
+        };
+
       // Session Management
       case 'save':
         InputValidator.validateStringLength(args.name, 'name', 255, false);
@@ -1547,9 +1836,139 @@ export class EnhancedMCPServerFixed {
           };
         }
 
+      // AI Collaborative Jamming (#82)
+      case 'jam_with':
+        return await this.jamWith(args.layer, args.style_hint, args.auto_play);
+
+      // Pattern Refinement Tools (#78, #81)
+      case 'refine':
+        return await this.refinePattern(args.direction);
+
+      case 'set_energy':
+        return await this.setEnergyLevel(args.level);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
+  }
+
+  /**
+   * Incrementally refines the current pattern with simple directional commands.
+   * Supports: faster/slower, louder/quieter, brighter/darker, more reverb/drier.
+   * @param direction - Refinement direction
+   * @returns Result object with success status and applied refinement
+   */
+  private async refinePattern(direction: string): Promise<{
+    success: boolean;
+    direction?: string;
+    applied?: string;
+    error?: string;
+  }> {
+    const currentPattern = await this.getCurrentPatternSafe();
+    if (!currentPattern || currentPattern.trim().length === 0) {
+      return {
+        success: false,
+        error: 'No pattern to refine. Write a pattern first.'
+      };
+    }
+
+    let modification = '';
+    const dir = direction.toLowerCase().trim();
+
+    switch (dir) {
+      case 'faster':
+        modification = '.fast(1.1)';
+        break;
+      case 'slower':
+        modification = '.slow(1.1)';
+        break;
+      case 'louder':
+        modification = '.gain(1.1)';
+        break;
+      case 'quieter':
+        modification = '.gain(0.9)';
+        break;
+      case 'brighter':
+        modification = '.lpf(2000)';
+        break;
+      case 'darker':
+        modification = '.lpf(800)';
+        break;
+      case 'more reverb':
+        modification = '.room(0.5)';
+        break;
+      case 'drier':
+        modification = '.room(0.1)';
+        break;
+      default:
+        return {
+          success: false,
+          error: `Unknown refinement direction: ${direction}. Supported: faster, slower, louder, quieter, brighter, darker, "more reverb", drier.`
+        };
+    }
+
+    const newPattern = currentPattern + modification;
+    await this.writePatternSafe(newPattern);
+
+    if (this.isInitialized) {
+      await this.controller.play();
+    }
+
+    return {
+      success: true,
+      direction: dir,
+      applied: modification
+    };
+  }
+
+  /**
+   * Adjusts the overall energy level of the current pattern.
+   * @param level - Energy level from 0 (minimal) to 10 (maximum)
+   * @returns Result object with success status
+   */
+  private async setEnergyLevel(level: number): Promise<{
+    success: boolean;
+    level?: number;
+    description?: string;
+    error?: string;
+  }> {
+    if (level < 0 || level > 10 || !Number.isInteger(level)) {
+      return {
+        success: false,
+        error: 'Energy level must be an integer from 0 to 10.'
+      };
+    }
+
+    const currentPattern = await this.getCurrentPatternSafe();
+    if (!currentPattern || currentPattern.trim().length === 0) {
+      return {
+        success: false,
+        error: 'No pattern to adjust. Write a pattern first.'
+      };
+    }
+
+    const config = ENERGY_LEVELS[level];
+    let newPattern = currentPattern;
+
+    // Apply density adjustment if specified
+    if (config.densityAdjust) {
+      newPattern += config.densityAdjust;
+    }
+
+    // Apply room/reverb
+    newPattern += `.room(${config.roomAmount})`;
+
+    await this.writePatternSafe(newPattern);
+
+    if (this.isInitialized) {
+      await this.controller.play();
+    }
+
+    return {
+      success: true,
+      level,
+      description: config.description
+    };
   }
 
   private transposePattern(pattern: string, semitones: number): string {
@@ -2120,6 +2539,295 @@ export class EnhancedMCPServerFixed {
         error: result.error
       };
     }
+  }
+
+  /**
+   * AI Collaborative Jamming - generates a complementary layer to jam with the current pattern (#82)
+   * @param layer - Type of layer to add (drums, bass, melody, pad, texture)
+   * @param styleHint - Optional style guidance
+   * @param autoPlay - Whether to auto-play after adding layer (default: true)
+   * @returns Result with merged pattern and analysis info
+   */
+  private async jamWith(
+    layer: 'drums' | 'bass' | 'melody' | 'pad' | 'texture',
+    styleHint?: string,
+    autoPlay: boolean = true
+  ): Promise<{
+    success: boolean;
+    message: string;
+    layer: string;
+    detected: { tempo: number; key: string; existingLayers: string[] };
+    newLayer: string;
+    pattern?: string;
+    error?: string;
+  }> {
+    const validLayers = ['drums', 'bass', 'melody', 'pad', 'texture'];
+    if (!validLayers.includes(layer)) {
+      return {
+        success: false,
+        message: `Invalid layer type: ${layer}. Must be one of: ${validLayers.join(', ')}`,
+        layer,
+        detected: { tempo: 120, key: 'C', existingLayers: [] },
+        newLayer: ''
+      };
+    }
+
+    const currentPattern = await this.getCurrentPatternSafe();
+    if (!currentPattern || currentPattern.trim().length === 0) {
+      return {
+        success: false,
+        message: 'No pattern to jam with. Write a pattern first.',
+        layer,
+        detected: { tempo: 120, key: 'C', existingLayers: [] },
+        newLayer: ''
+      };
+    }
+
+    const tempo = this.detectTempoFromPattern(currentPattern);
+    const key = this.detectKeyFromPattern(currentPattern);
+    const existingLayers = this.detectExistingLayers(currentPattern);
+    const detectedStyle = this.detectStyleFromPattern(currentPattern, styleHint);
+
+    if (existingLayers.includes(layer) && layer !== 'texture') {
+      this.logger.warn(`Pattern already contains ${layer} layer, adding anyway`);
+    }
+
+    let newLayer: string;
+    try {
+      newLayer = this.generateComplementaryLayer(layer, key, tempo, detectedStyle, existingLayers);
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to generate ${layer} layer: ${error.message}`,
+        layer,
+        detected: { tempo, key, existingLayers },
+        newLayer: '',
+        error: error.message
+      };
+    }
+
+    const mergedPattern = this.mergeLayerIntoPattern(currentPattern, newLayer, layer);
+
+    try {
+      await this.writePatternSafe(mergedPattern);
+      if (autoPlay && this.isInitialized) {
+        await this.controller.play();
+      }
+
+      return {
+        success: true,
+        message: `Added ${layer} layer${styleHint ? ` (${styleHint} style)` : ''} to jam with your pattern`,
+        layer,
+        detected: { tempo, key, existingLayers },
+        newLayer,
+        pattern: mergedPattern.substring(0, 300) + (mergedPattern.length > 300 ? '...' : '')
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to write merged pattern: ${error.message}`,
+        layer,
+        detected: { tempo, key, existingLayers },
+        newLayer,
+        error: error.message
+      };
+    }
+  }
+
+  private detectTempoFromPattern(pattern: string): number {
+    const cpmMatch = pattern.match(/setcpm\s*\(\s*(\d+(?:\.\d+)?)\s*\)/i);
+    if (cpmMatch) return Math.round(parseFloat(cpmMatch[1]));
+    const bpmMatch = pattern.match(/setbpm\s*\(\s*(\d+(?:\.\d+)?)\s*\)/i);
+    if (bpmMatch) return Math.round(parseFloat(bpmMatch[1]));
+    const cpsMatch = pattern.match(/setcps\s*\(\s*(\d+(?:\.\d+)?)\s*(?:\/\s*60)?\s*\)/i);
+    if (cpsMatch) {
+      const cps = parseFloat(cpsMatch[1]);
+      if (pattern.includes(`setcps(${cpsMatch[1]}/60`)) return Math.round(cps);
+      return Math.round(cps * 60);
+    }
+    if (pattern.toLowerCase().includes('dnb')) return 174;
+    if (pattern.toLowerCase().includes('techno')) return 130;
+    if (pattern.toLowerCase().includes('house')) return 125;
+    return 120;
+  }
+
+  private detectKeyFromPattern(pattern: string): string {
+    const noteMatches = pattern.match(/note\s*\(\s*["']([^"']+)["']\s*\)/gi) || [];
+    const nMatches = pattern.match(/\.n\s*\(\s*["']([^"']+)["']\s*\)/gi) || [];
+    const allNotes: string[] = [];
+
+    for (const match of noteMatches) {
+      const notesInMatch = match.match(/[a-g][#b]?\d?/gi) || [];
+      allNotes.push(...notesInMatch.map(n => n.toLowerCase().replace(/\d/g, '')));
+    }
+    for (const match of nMatches) {
+      const notesInMatch = match.match(/[a-g][#b]?\d?/gi) || [];
+      allNotes.push(...notesInMatch.map(n => n.toLowerCase().replace(/\d/g, '')));
+    }
+    const chordMatches = pattern.match(/chord\s*\(\s*["']<([^>]+)>/gi) || [];
+    for (const match of chordMatches) {
+      const rootMatch = match.match(/[a-g][#b]?/i);
+      if (rootMatch) allNotes.push(rootMatch[0].toLowerCase());
+    }
+
+    if (allNotes.length === 0) return 'C';
+
+    const noteCounts: Record<string, number> = {};
+    for (const note of allNotes) {
+      const normalizedNote = note.charAt(0).toUpperCase() + note.slice(1);
+      noteCounts[normalizedNote] = (noteCounts[normalizedNote] || 0) + 1;
+    }
+
+    let mostCommonNote = 'C';
+    let maxCount = 0;
+    for (const [note, count] of Object.entries(noteCounts)) {
+      if (count > maxCount) { maxCount = count; mostCommonNote = note; }
+    }
+    return mostCommonNote;
+  }
+
+  private detectExistingLayers(pattern: string): string[] {
+    const layers: string[] = [];
+    const lowerPattern = pattern.toLowerCase();
+
+    if (lowerPattern.includes('bd') || lowerPattern.includes('cp') ||
+        lowerPattern.includes('hh') || lowerPattern.includes('sd') ||
+        lowerPattern.includes('sn') || lowerPattern.includes('oh') ||
+        lowerPattern.includes('breaks') || lowerPattern.includes('drum')) {
+      layers.push('drums');
+    }
+    if (pattern.match(/note\s*\([^)]*[12]\s*["']/i) || lowerPattern.includes('bass')) {
+      layers.push('bass');
+    }
+    if (pattern.match(/note\s*\([^)]*[34567]\s*["']/i) ||
+        lowerPattern.includes('melody') || lowerPattern.includes('lead')) {
+      layers.push('melody');
+    }
+    if (lowerPattern.includes('chord(') || lowerPattern.includes('pad') ||
+        lowerPattern.includes('strings') || lowerPattern.includes('.voicing')) {
+      layers.push('pad');
+    }
+    if (lowerPattern.includes('noise') || lowerPattern.includes('fx') ||
+        lowerPattern.includes('perlin') || lowerPattern.includes('rand')) {
+      layers.push('texture');
+    }
+    return layers;
+  }
+
+  private detectStyleFromPattern(pattern: string, styleHint?: string): string {
+    if (styleHint) return styleHint.toLowerCase();
+    const lowerPattern = pattern.toLowerCase();
+    const tempo = this.detectTempoFromPattern(pattern);
+    if (tempo >= 160 && lowerPattern.includes('breaks')) return 'jungle';
+    if (tempo >= 165 && tempo <= 180) return 'dnb';
+    if (tempo >= 125 && tempo <= 135 && lowerPattern.includes('bd*4')) {
+      return lowerPattern.includes('cp') ? 'techno' : 'house';
+    }
+    if (tempo <= 100 && lowerPattern.includes('room')) return 'ambient';
+    if (lowerPattern.includes('trap')) return 'trap';
+    return 'techno';
+  }
+
+  private generateComplementaryLayer(
+    layer: string, key: string, tempo: number, style: string, existingLayers: string[]
+  ): string {
+    switch (layer) {
+      case 'drums':
+        if (existingLayers.includes('drums')) {
+          const percOptions: Record<string, string> = {
+            'techno': 's("~ hh ~ hh, ~ ~ oh ~").gain(0.4).hpf(5000)',
+            'house': 's("[~ hh]*4, ~ ~ oh ~").gain(0.35).room(0.2)',
+            'dnb': 's("hh*16").gain(perlin.range(0.2, 0.4)).hpf(6000)',
+            'ambient': 's("~ ~ ~ hh:8").room(0.8).gain(0.2).slow(2)',
+            'trap': 's("hh*16").gain(perlin.range(0.15, 0.35)).hpf(5000)',
+            'jungle': 's("hh*32").gain(perlin.range(0.2, 0.4)).hpf(4000)',
+            'jazz': 's("~ ride ~ ride, ~ ~ ~ hh").gain(0.3).room(0.3)'
+          };
+          return percOptions[style] || percOptions['techno'];
+        }
+        return this.generator.generateDrumPattern(style, 0.6);
+
+      case 'bass':
+        return this.generator.generateBassline(key, style);
+
+      case 'melody': {
+        let scaleName: 'minor' | 'major' | 'dorian' | 'pentatonic' = 'minor';
+        let octaveRange: [number, number] = [4, 5];
+        if (style === 'jazz') { scaleName = 'dorian'; octaveRange = [3, 5]; }
+        if (style === 'ambient') { scaleName = 'major'; octaveRange = [4, 6]; }
+        if (existingLayers.includes('bass')) octaveRange = [4, 6];
+        const scale = this.theory.generateScale(key, scaleName);
+        const effects: Record<string, string> = {
+          'techno': '.delay(0.25).room(0.2)', 'house': '.room(0.3).gain(0.6)',
+          'dnb': '.delay(0.125).room(0.2).gain(0.5)', 'ambient': '.room(0.7).delay(0.5).gain(0.4)',
+          'trap': '.gain(0.5).room(0.15)', 'jungle': '.delay(0.125).room(0.25).gain(0.55)',
+          'jazz': '.room(0.4).gain(0.5)'
+        };
+        return this.generator.generateMelody(scale, 8, octaveRange) + (effects[style] || '.room(0.3).gain(0.5)');
+      }
+
+      case 'pad': {
+        const safeKey = key.toLowerCase();
+        const fourth = this.theory.getNote(key, 5).toLowerCase();
+        const fifth = this.theory.getNote(key, 7).toLowerCase();
+        const padPatterns: Record<string, string> = {
+          'techno': `chord("<${safeKey}m7 ${fourth}m7>/4").dict('ireal').voicing().s("sawtooth").attack(0.5).release(2).lpf(2000).gain(0.2).room(0.4)`,
+          'house': `chord("<${safeKey}m9 ${fourth}7 ${fifth}m7>/2").dict('ireal').voicing().s("gm_epiano1").gain(0.3).room(0.4)`,
+          'dnb': `chord("<${safeKey}m9 ${fourth}m9>/8").dict('ireal').voicing().s("gm_strings").attack(1).release(2).gain(0.2).room(0.5).lpf(3500)`,
+          'ambient': `chord("<${safeKey}maj7 ${fourth}maj7 ${fifth}m7>/8").dict('ireal').voicing().s("sawtooth").attack(3).release(5).lpf(sine.range(400, 1200).slow(16)).gain(0.15).room(0.9)`,
+          'trap': `chord("<${safeKey}m7>/4").dict('ireal').voicing().s("sawtooth").attack(0.1).release(0.5).lpf(1500).gain(0.25).room(0.3)`,
+          'jungle': `chord("<${safeKey}m9 ${fourth}m9>/8").dict('ireal').voicing().s("gm_epiano1").gain(0.25).room(0.4).delay(0.25)`,
+          'jazz': `chord("<${safeKey}m9 ${fourth}m9 ${fifth}7>/4").dict('ireal').voicing().s("gm_epiano1").gain(0.3).room(0.5)`
+        };
+        return padPatterns[style] || padPatterns['techno'];
+      }
+
+      case 'texture': {
+        const texturePatterns: Record<string, string> = {
+          'techno': `s("hh:8*16").gain(perlin.range(0.02, 0.06)).hpf(8000).room(0.6).pan(perlin.range(0.2, 0.8).slow(8))`,
+          'house': `s("~ noise:2 ~ noise:2").gain(0.04).hpf(6000).room(0.4)`,
+          'dnb': `s("~ ~ ~ noise:4").gain(perlin.range(0.02, 0.05)).hpf(7000).room(0.5).pan(perlin.range(0.3, 0.7))`,
+          'ambient': `s("pad:1").n(perlin.range(0, 8).floor()).gain(0.08).room(0.95).lpf(sine.range(500, 2000).slow(32)).slow(4)`,
+          'trap': `s("~ ~ noise:3 ~").gain(0.03).hpf(10000).room(0.3)`,
+          'jungle': `s("breaks125:8").fit().chop(32).gain(0.05).hpf(5000).room(0.4).pan(perlin.range(0.2, 0.8))`,
+          'jazz': `s("brush:1").struct("~ 1 ~ 1 ~ 1 ~ ~").gain(0.1).room(0.5)`
+        };
+        return texturePatterns[style] || texturePatterns['techno'];
+      }
+
+      default:
+        throw new Error(`Unknown layer type: ${layer}`);
+    }
+  }
+
+  private mergeLayerIntoPattern(currentPattern: string, newLayer: string, layerType: string): string {
+    const trimmedPattern = currentPattern.trim();
+    const trimmedLayer = newLayer.trim();
+    const stackMatch = trimmedPattern.match(/^([\s\S]*?)stack\s*\(\s*([\s\S]*?)\s*\)([\s\S]*)$/);
+
+    if (stackMatch) {
+      const prefix = stackMatch[1];
+      const stackContents = stackMatch[2].trimEnd().replace(/,\s*$/, '');
+      const suffix = stackMatch[3];
+      return `${prefix}stack(
+  ${stackContents},
+
+  // Jam ${layerType} layer
+  ${trimmedLayer}
+)${suffix}`;
+    }
+
+    const tempoMatch = trimmedPattern.match(/^(\s*(?:setcp[ms]|setbpm)\s*\([^)]+\)\s*\n?)/);
+    const tempoPrefix = tempoMatch ? tempoMatch[1] : '';
+    const patternBody = tempoMatch ? trimmedPattern.slice(tempoMatch[0].length) : trimmedPattern;
+
+    return `${tempoPrefix}stack(
+  // Original pattern
+  ${patternBody},
+
+  // Jam ${layerType} layer
+  ${trimmedLayer}
+)`;
   }
 
   async run() {

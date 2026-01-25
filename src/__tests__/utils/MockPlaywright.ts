@@ -134,6 +134,27 @@ export class MockPage implements Partial<Page> {
       }
     }
 
+    // Handle strudelMirror API (the correct API for strudel.cc)
+    if (fnString.includes('strudelMirror')) {
+      // Handle reading via sm.code or sm.editor.state.doc
+      if (fnString.includes('sm?.code') || fnString.includes('sm.code') ||
+          fnString.includes('editor?.state?.doc') || fnString.includes('editor.state.doc')) {
+        return this.content;
+      }
+      // Handle writing via editor.dispatch
+      if (fnString.includes('dispatch')) {
+        const newContent = args[0];
+        if (typeof newContent === 'string') {
+          this.content = newContent;
+        }
+        return true; // Return success indicator
+      }
+      // Handle diagnostics check for editor API
+      if (fnString.includes('editor?.dispatch') || fnString.includes('editor.dispatch')) {
+        return true; // Editor is ready
+      }
+    }
+
     if (fnString.includes('.cm-content')) {
       // Handle reading with CodeMirror API (view.state.doc.toString())
       if (fnString.includes('view.state.doc.toString') || fnString.includes('doc.toString')) {

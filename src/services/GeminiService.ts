@@ -803,4 +803,147 @@ Consider:
       };
     }
   }
+
+  /**
+   * Modifies a Strudel pattern based on a natural language description.
+   * Uses Gemini to interpret the modification request and generate valid Strudel code.
+   *
+   * @param currentPattern - The current Strudel pattern code
+   * @param modification - Natural language description of the desired modification
+   * @returns Modified pattern code
+   * @throws {Error} When authentication not available, pattern invalid, or rate limit exceeded
+   *
+   * @example
+   * const modified = await gemini.modifyPatternWithNLP(
+   *   's("bd sd").fast(2)',
+   *   'make the bass heavier and add hi-hats'
+   * );
+   */
+  async modifyPatternWithNLP(currentPattern: string, modification: string): Promise<string> {
+    await this.ensureAuthentication();
+
+    // Validate inputs
+    const validatedPattern = this.validateAndPreparePattern(currentPattern, 'modifyPatternWithNLP');
+
+    if (modification === null || modification === undefined) {
+      throw new Error('modifyPatternWithNLP: Modification description is required.');
+    }
+
+    if (typeof modification !== 'string') {
+      throw new Error('modifyPatternWithNLP: Modification description must be a string.');
+    }
+
+    const trimmedModification = modification.trim();
+    if (trimmedModification.length === 0) {
+      throw new Error('modifyPatternWithNLP: Modification description cannot be empty.');
+    }
+
+    if (trimmedModification.length > 500) {
+      throw new Error('modifyPatternWithNLP: Modification description too long (max 500 characters).');
+    }
+
+    this.checkRateLimit();
+
+    try {
+      const prompt = this.buildNLPModifyPrompt(validatedPattern, trimmedModification);
+      const response = await this.callGeminiAPIWithTimeout(prompt);
+
+      return this.parseNLPModifyResponse(response, validatedPattern);
+    } catch (error: any) {
+      this.logger.error('NLP pattern modification failed', error);
+
+      // Provide actionable error messages
+      if (error.message?.includes('timed out')) {
+        throw new Error('Pattern modification timed out. The pattern may be too complex. Try a simpler pattern.');
+      }
+      if (error.message?.includes('rate limit') || error.message?.includes('Rate limit')) {
+        throw error; // Re-throw rate limit errors as-is
+      }
+
+      throw new Error(`Pattern modification failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Builds the prompt for NLP-based pattern modification
+   */
+  private buildNLPModifyPrompt(pattern: string, modification: string): string {
+    return `You are an expert in Strudel.cc live coding music. Your task is to modify a pattern based on a natural language request.
+
+CURRENT PATTERN:
+\`\`\`javascript
+${pattern}
+\`\`\`
+
+MODIFICATION REQUEST: "${modification}"
+
+STRUDEL SYNTAX REFERENCE:
+- Basic sounds: s("bd sd hh") - plays samples
+- Notes: note("c3 e3 g3") or n("0 4 7") - plays notes
+- Speed: .fast(2) doubles speed, .slow(2) halves speed
+- Effects: .gain(0.8), .lpf(800), .hpf(200), .room(0.5), .delay(0.25)
+- Patterns: [a b] groups, <a b> alternates, a*4 repeats
+- Stacking: stack(pattern1, pattern2) plays simultaneously
+- Common samples: bd (kick), sd (snare), hh (hihat), cp (clap), oh (open hihat)
+
+RULES:
+1. Return ONLY the modified Strudel code - no explanations, no markdown formatting
+2. The output must be valid Strudel.cc syntax
+3. Preserve the original pattern's structure where possible
+4. Make the requested changes clearly and musically appropriate
+5. If the modification is unclear, make a reasonable interpretation
+6. Keep gain values between 0 and 1.5 for safety
+7. Do not use eval(), Function(), or any dangerous constructs
+
+Return the modified pattern code:`;
+  }
+
+  /**
+   * Parses the NLP modification response and extracts the pattern
+   * Falls back to original pattern if parsing fails
+   */
+  private parseNLPModifyResponse(response: string, originalPattern: string): string {
+    // Clean the response - remove markdown code blocks if present
+    let cleaned = response.trim();
+
+    // Remove markdown code block formatting
+    if (cleaned.startsWith('```')) {
+      const lines = cleaned.split('\n');
+      // Remove first line (```javascript or ```)
+      lines.shift();
+      // Remove last line if it's ```
+      if (lines[lines.length - 1]?.trim() === '```') {
+        lines.pop();
+      }
+      cleaned = lines.join('\n').trim();
+    }
+
+    // Basic validation - check for dangerous patterns
+    const dangerousPatterns = ['eval(', 'Function(', 'new Function', 'setTimeout', 'setInterval'];
+    for (const dangerous of dangerousPatterns) {
+      if (cleaned.includes(dangerous)) {
+        this.logger.warn(`NLP response contains dangerous pattern: ${dangerous}`);
+        throw new Error('Generated pattern contains unsafe code. Returning original pattern.');
+      }
+    }
+
+    // Check for excessive gain
+    const gainMatch = cleaned.match(/\.gain\s*\(\s*([0-9.]+)\s*\)/);
+    if (gainMatch) {
+      const gainValue = parseFloat(gainMatch[1]);
+      if (gainValue > 2.0) {
+        this.logger.warn(`NLP response contains dangerous gain: ${gainValue}`);
+        // Replace with safe gain
+        cleaned = cleaned.replace(/\.gain\s*\(\s*[0-9.]+\s*\)/, '.gain(1.0)');
+      }
+    }
+
+    // If response is empty or too short, return original
+    if (!cleaned || cleaned.length < 3) {
+      this.logger.warn('NLP response too short, returning original pattern');
+      return originalPattern;
+    }
+
+    return cleaned;
+  }
 }

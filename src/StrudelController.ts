@@ -86,13 +86,10 @@ export class StrudelController {
     // Wait for editor element to appear
     await this._page.waitForSelector('.cm-content', { timeout: 8000 });
 
-    // Wait for CodeMirror to fully initialize (attach __view)
-    // This fixes race condition where DOM exists but CM isn't ready
+    // Wait for strudelMirror API to be available
+    // This is the correct API exposed by strudel.cc (not __view on DOM elements)
     await this._page.waitForFunction(
-      () => {
-        const editor = document.querySelector('.cm-content');
-        return editor && (editor as any).__view;
-      },
+      () => (window as any).strudelMirror?.editor?.dispatch,
       { timeout: 5000 }
     );
 
@@ -158,17 +155,15 @@ export class StrudelController {
     let success = false;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-      // Use evaluate for faster direct manipulation
+      // Use strudelMirror API (correct approach for strudel.cc)
       success = await this._page.evaluate((newPattern) => {
-        const editor = document.querySelector('.cm-content') as HTMLElement;
-        if (editor) {
-          const view = (editor as any).__view;
-          if (view) {
-            view.dispatch({
-              changes: { from: 0, to: view.state.doc.length, insert: newPattern }
-            });
-            return true;
-          }
+        const sm = (window as any).strudelMirror;
+        if (sm?.editor?.dispatch) {
+          const view = sm.editor;
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: newPattern }
+          });
+          return true;
         }
         return false;
       }, pattern);
@@ -189,13 +184,10 @@ export class StrudelController {
 
     // Verify the write by reading back from browser (fixes cache sync issues)
     const verified = await this._page.evaluate(() => {
-      const editor = document.querySelector('.cm-content') as HTMLElement;
-      if (editor) {
-        const view = (editor as any).__view;
-        if (view && view.state && view.state.doc) {
-          return view.state.doc.toString();
-        }
-      }
+      const sm = (window as any).strudelMirror;
+      // Use code property or editor state
+      if (sm?.code) return sm.code;
+      if (sm?.editor?.state?.doc) return sm.editor.state.doc.toString();
       return null;
     });
 
@@ -226,13 +218,10 @@ export class StrudelController {
     }
 
     const pattern = await this._page.evaluate(() => {
-      const editor = document.querySelector('.cm-content') as HTMLElement;
-      if (editor) {
-        const view = (editor as any).__view;
-        if (view && view.state && view.state.doc) {
-          return view.state.doc.toString();
-        }
-      }
+      const sm = (window as any).strudelMirror;
+      // Use code property or editor state
+      if (sm?.code) return sm.code;
+      if (sm?.editor?.state?.doc) return sm.editor.state.doc.toString();
       return '';
     });
 
@@ -748,10 +737,10 @@ export class StrudelController {
 
     if (this._page) {
       try {
-        // Check both that element exists AND CodeMirror view is attached
+        // Check that strudelMirror API is available
         diagnostics.editorReady = await this._page.evaluate(() => {
-          const editor = document.querySelector('.cm-content');
-          return editor !== null && (editor as any).__view !== undefined;
+          const sm = (window as any).strudelMirror;
+          return sm?.editor?.dispatch !== undefined;
         });
 
         diagnostics.audioConnected = await this._page.evaluate(() => {

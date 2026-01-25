@@ -1,7 +1,7 @@
 {
   "name": "hard-techno",
   "genre": "techno",
-  "pattern": "// techno pattern in A at 135 BPM\nsetcpm(135)\n\nstack(\n  // Drums\n  s(\"bd*4, ~ cp ~ cp, hh*8\"),\n  \n  // Bass\n  note(\"A2 A2 A2 A2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"am\" \"F#\" \"C#\" \"G#\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"f3 g5 c5 d3 e5 f4 g5 a4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// techno pattern in A at 135 BPM\nsetcpm(135)\n\nstack(\n  // Drums\n  s(\"bd*4, ~ cp ~ cp, hh*8\"),\n  \n  // Bass\n  note(\"A2 A2 A2 A2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"am\" \"F#\" \"C#\" \"G#\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"e4 d4 f4 g4 a4 g3 f3 e4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 135,
   "key": "A",
   "description": "Hard driving techno with acid bassline",
@@ -9,5 +9,5 @@
     "techno",
     "hard techno"
   ],
-  "timestamp": "2026-01-25T13:38:07.455Z"
+  "timestamp": "2026-01-25T19:41:43.196Z"
 }

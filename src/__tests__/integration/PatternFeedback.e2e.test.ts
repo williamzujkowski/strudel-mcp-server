@@ -35,6 +35,7 @@ jest.mock('../../PatternStore');
 jest.mock('../../services/GeminiService');
 jest.mock('../../services/AudioCaptureService');
 jest.mock('../../services/SessionManager');
+jest.mock('../../services/StrudelEngine');
 
 // Mock filesystem
 jest.mock('fs', () => ({

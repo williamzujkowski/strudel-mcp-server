@@ -25,6 +25,7 @@ import { mcpRequests, samplePatterns } from '../utils/TestFixtures';
 jest.mock('playwright');
 jest.mock('../../StrudelController');
 jest.mock('../../PatternStore');
+jest.mock('../../services/StrudelEngine');
 
 describe('MCP Server Integration Tests', () => {
   let server: EnhancedMCPServerFixed;

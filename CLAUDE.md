@@ -153,7 +153,7 @@ Adding context guidelines to CLAUDE.md after line 70.
 ## Project Purpose
 This is an **open source, actively developed** MCP server enabling AI agents to generate music via Strudel.cc using browser automation.
 
-**Current State:** Functional but experimental. 69% test coverage (goal: 80%). Known issues exist (see GitHub Issues). Contributions welcome.
+**Current State:** Functional but experimental. 78% test coverage (goal: 80%). Known issues exist (see GitHub Issues). Contributions welcome.
 
 ## GitHub Issues Workflow
 
@@ -224,7 +224,7 @@ Closes #123"
 ## Core Architecture
 
 ```
-MCP Protocol Layer (52 tools)
+MCP Protocol Layer (66 tools)
     ↓
 Services: MusicTheory, PatternGenerator
     ↓
@@ -239,7 +239,7 @@ Integration: Playwright → Strudel.cc
 
 ### 1. EnhancedMCPServerFixed (`src/server/EnhancedMCPServerFixed.ts`)
 - **Purpose**: MCP protocol handling, tool registration
-- **Tools**: 52 registered tools for pattern generation, manipulation, analysis
+- **Tools**: 66 registered tools for pattern generation, manipulation, analysis
 - **Key Methods**: `setupHandlers()`, `executeTool()`, `handleToolsList()`
 - **State**: Manages undo/redo stacks, pattern cache
 
@@ -304,7 +304,7 @@ npm run validate       # Test MCP protocol
 
 ### Testing
 ```bash
-npm test              # Run Jest tests (704 tests)
+npm test              # Run Jest tests (1521 tests)
 npm run test:watch    # Watch mode
 ```
 
@@ -339,13 +339,15 @@ npm run test:watch    # Watch mode
 
 ### Browser Automation
 ```typescript
-// Direct CodeMirror manipulation (fast)
+// Direct strudelMirror API manipulation (fast)
 await this.page.evaluate((pattern) => {
-  const editor = document.querySelector('.cm-content');
-  const view = editor.__view;
-  view.dispatch({
-    changes: { from: 0, to: view.state.doc.length, insert: pattern }
-  });
+  const sm = (window as any).strudelMirror;
+  if (sm?.editor?.dispatch) {
+    const view = sm.editor;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: pattern }
+    });
+  }
 }, patternCode);
 ```
 
@@ -388,23 +390,25 @@ if (!validation.isValid) {
 ```
 src/
 ├── index.ts                    # Entry point
+├── StrudelController.ts        # Browser automation (756 lines)
+├── AudioAnalyzer.ts            # Audio analysis (804 lines)
+├── PatternStore.ts             # Persistence (205 lines)
 ├── server/
-│   └── EnhancedMCPServerFixed.ts  # MCP server (1435 lines)
-├── controllers/
-│   └── StrudelController.ts    # Browser automation (786 lines)
-├── analyzers/
-│   └── AudioAnalyzer.ts        # Audio analysis (804 lines)
+│   └── EnhancedMCPServerFixed.ts  # MCP server (2844 lines)
 ├── services/
 │   ├── MusicTheory.ts          # Music theory (204 lines)
-│   └── PatternGenerator.ts     # Pattern generation (684 lines)
-├── storage/
-│   └── PatternStore.ts         # Persistence (205 lines)
+│   ├── PatternGenerator.ts     # Pattern generation (684 lines)
+│   ├── GeminiService.ts        # AI feedback integration
+│   ├── SessionManager.ts       # Multi-session management
+│   ├── AudioCaptureService.ts  # Audio recording
+│   └── MIDIExportService.ts    # MIDI export
 ├── utils/
-│   ├── Logger.ts               # Logging (23 lines)
-│   ├── PatternValidator.ts     # Validation (317 lines)
-│   ├── ErrorRecovery.ts        # Error handling (387 lines)
-│   └── PerformanceMonitor.ts   # Monitoring (144 lines)
-└── __tests__/                  # Jest tests (704 tests)
+│   ├── Logger.ts               # Logging (22 lines)
+│   ├── PatternValidator.ts     # Validation (286 lines)
+│   ├── ErrorRecovery.ts        # Error handling (338 lines)
+│   ├── PerformanceMonitor.ts   # Monitoring (156 lines)
+│   └── InputValidator.ts       # Input validation (321 lines)
+└── __tests__/                  # Jest tests (1521 tests)
 ```
 
 ## Testing Strategy

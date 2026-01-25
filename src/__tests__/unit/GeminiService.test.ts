@@ -753,4 +753,183 @@ describe('GeminiService', () => {
         .rejects.toThrow('exceeds maximum length of 100');
     });
   });
+
+  describe('modifyPatternWithNLP', () => {
+    const originalPattern = 's("bd sd").fast(2)';
+
+    beforeEach(() => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 's("bd sd hh*4").fast(2).gain(0.8)'
+        }
+      });
+    });
+
+    it('should throw when neither API key nor ADC configured', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No credentials'))
+      }));
+
+      const noKeyService = new GeminiService();
+      await expect(noKeyService.modifyPatternWithNLP(originalPattern, 'add hi-hats'))
+        .rejects.toThrow('Gemini API key not configured');
+    });
+
+    it('should modify pattern based on natural language description', async () => {
+      const modified = await service.modifyPatternWithNLP(
+        originalPattern,
+        'add hi-hats'
+      );
+
+      expect(modified).toContain('hh');
+      expect(mockGenerateContent).toHaveBeenCalled();
+    });
+
+    it('should include current pattern and modification in prompt', async () => {
+      await service.modifyPatternWithNLP(originalPattern, 'make it more psychedelic');
+
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs).toContain(originalPattern);
+      expect(callArgs).toContain('more psychedelic');
+    });
+
+    it('should strip markdown code blocks from response', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => '```javascript\ns("bd sd hh*4").fast(2)\n```'
+        }
+      });
+
+      const modified = await service.modifyPatternWithNLP(originalPattern, 'add hi-hats');
+
+      expect(modified).not.toContain('```');
+      expect(modified).toBe('s("bd sd hh*4").fast(2)');
+    });
+
+    it('should reject dangerous patterns with eval', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 'eval("malicious code")'
+        }
+      });
+
+      await expect(service.modifyPatternWithNLP(originalPattern, 'add effects'))
+        .rejects.toThrow('unsafe code');
+    });
+
+    it('should reject dangerous patterns with Function', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 'new Function("return 1")'
+        }
+      });
+
+      await expect(service.modifyPatternWithNLP(originalPattern, 'add effects'))
+        .rejects.toThrow('unsafe code');
+    });
+
+    it('should sanitize excessive gain values', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 's("bd").gain(5.0)'
+        }
+      });
+
+      const modified = await service.modifyPatternWithNLP(originalPattern, 'make it louder');
+
+      expect(modified).toContain('.gain(1.0)');
+      expect(modified).not.toContain('.gain(5.0)');
+    });
+
+    it('should allow safe gain values', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 's("bd").gain(1.5)'
+        }
+      });
+
+      const modified = await service.modifyPatternWithNLP(originalPattern, 'make it louder');
+
+      expect(modified).toContain('.gain(1.5)');
+    });
+
+    it('should return original pattern if response is empty', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => ''
+        }
+      });
+
+      const modified = await service.modifyPatternWithNLP(originalPattern, 'add effects');
+
+      expect(modified).toBe(originalPattern);
+    });
+
+    it('should return original pattern if response is too short', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => 'ab'
+        }
+      });
+
+      const modified = await service.modifyPatternWithNLP(originalPattern, 'add effects');
+
+      expect(modified).toBe(originalPattern);
+    });
+
+    it('should throw on empty pattern', async () => {
+      await expect(service.modifyPatternWithNLP('', 'add effects'))
+        .rejects.toThrow('Pattern cannot be empty');
+    });
+
+    it('should throw on empty modification description', async () => {
+      await expect(service.modifyPatternWithNLP(originalPattern, ''))
+        .rejects.toThrow('Modification description cannot be empty');
+    });
+
+    it('should throw on whitespace-only modification description', async () => {
+      await expect(service.modifyPatternWithNLP(originalPattern, '   \n\t   '))
+        .rejects.toThrow('Modification description cannot be empty');
+    });
+
+    it('should throw on null modification description', async () => {
+      await expect(service.modifyPatternWithNLP(originalPattern, null as any))
+        .rejects.toThrow('Modification description is required');
+    });
+
+    it('should throw on modification description too long', async () => {
+      const longDescription = 'a'.repeat(501);
+      await expect(service.modifyPatternWithNLP(originalPattern, longDescription))
+        .rejects.toThrow('Modification description too long');
+    });
+
+    it('should handle rate limit errors', async () => {
+      // Exhaust rate limit
+      for (let i = 0; i < 10; i++) {
+        await service.modifyPatternWithNLP(`pattern${i}`, 'modify');
+      }
+
+      await expect(service.modifyPatternWithNLP(originalPattern, 'add effects'))
+        .rejects.toThrow('Rate limit exceeded');
+    });
+
+    it('should handle API errors gracefully', async () => {
+      mockGenerateContent.mockRejectedValue(new Error('API unavailable'));
+
+      await expect(service.modifyPatternWithNLP(originalPattern, 'add effects'))
+        .rejects.toThrow('Pattern modification failed: API unavailable');
+    });
+
+    it('should include Strudel syntax reference in prompt', async () => {
+      await service.modifyPatternWithNLP(originalPattern, 'add reverb');
+
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      // Check for key Strudel syntax elements
+      expect(callArgs).toContain('s("bd sd hh")');
+      expect(callArgs).toContain('.fast(2)');
+      expect(callArgs).toContain('.room(');
+      expect(callArgs).toContain('stack(');
+    });
+  });
 });

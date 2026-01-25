@@ -1,6 +1,6 @@
 {
   "name": "@williamzujkowski/strudel-mcp-server",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Advanced MCP server for AI-powered music generation with Strudel.cc",
   "type": "module",
   "main": "dist/index.js",
@@ -34,6 +34,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "@strudel/core": "1.1.0",
+    "@strudel/mini": "1.1.0",
+    "@strudel/tonal": "1.1.0",
+    "@strudel/transpiler": "1.1.0",
     "@tonejs/midi": "^2.0.28",
     "google-auth-library": "^10.5.0",
     "playwright": "^1.40.0"
