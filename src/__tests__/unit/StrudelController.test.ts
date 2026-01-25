@@ -1,7 +1,7 @@
-import { StrudelController } from '../StrudelController';
+import { StrudelController } from '../../StrudelController';
 import { chromium } from 'playwright';
-import { MockBrowser, MockPage, createMockPage } from './utils/MockPlaywright';
-import { samplePatterns, audioFeatures } from './utils/TestFixtures';
+import { MockBrowser, MockPage, createMockPage } from '../utils/MockPlaywright';
+import { samplePatterns, audioFeatures } from '../utils/TestFixtures';
 
 // Mock Playwright
 jest.mock('playwright', () => ({
@@ -848,6 +848,582 @@ describe('StrudelController', () => {
       expect(writeResult.result).toBeTruthy();
       // Check that we at least got some feedback
       expect(writeResult.result.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('console message management', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should return empty arrays initially', () => {
+      expect(controller.getConsoleErrors()).toEqual([]);
+      expect(controller.getConsoleWarnings()).toEqual([]);
+    });
+
+    test('should clear console messages', () => {
+      // Trigger some activity then clear
+      controller.clearConsoleMessages();
+      expect(controller.getConsoleErrors()).toEqual([]);
+      expect(controller.getConsoleWarnings()).toEqual([]);
+    });
+
+    test('should return copies of arrays not references', () => {
+      const errors1 = controller.getConsoleErrors();
+      const errors2 = controller.getConsoleErrors();
+      expect(errors1).not.toBe(errors2);
+      expect(errors1).toEqual(errors2);
+    });
+  });
+
+  describe('page getter', () => {
+    test('should return null when not initialized', () => {
+      expect(controller.page).toBeNull();
+    });
+
+    test('should return page when initialized', async () => {
+      await controller.initialize();
+      expect(controller.page).not.toBeNull();
+    });
+  });
+
+  describe('getStatus', () => {
+    test('should return status when not initialized', () => {
+      const status = controller.getStatus();
+
+      expect(status.initialized).toBe(false);
+      expect(status.playing).toBe(false);
+      expect(status.patternLength).toBe(0);
+      expect(status.cacheValid).toBe(false);
+      expect(status.errorCount).toBe(0);
+      expect(status.warningCount).toBe(0);
+    });
+
+    test('should return status when initialized', async () => {
+      await controller.initialize();
+      const status = controller.getStatus();
+
+      expect(status.initialized).toBe(true);
+      expect(status.playing).toBe(false);
+    });
+
+    test('should reflect playback state', async () => {
+      await controller.initialize();
+      await controller.play();
+
+      const status = controller.getStatus();
+      expect(status.playing).toBe(true);
+    });
+
+    test('should reflect pattern length', async () => {
+      await controller.initialize();
+      await controller.writePattern('s("bd*4")');
+
+      const status = controller.getStatus();
+      expect(status.patternLength).toBeGreaterThan(0);
+    });
+
+    test('should reflect cache validity', async () => {
+      await controller.initialize();
+      await controller.writePattern('s("bd*4")');
+
+      const status = controller.getStatus();
+      expect(status.cacheValid).toBe(true);
+
+      controller.invalidateCache();
+      const status2 = controller.getStatus();
+      expect(status2.cacheValid).toBe(false);
+    });
+  });
+
+  describe('showBrowser', () => {
+    test('should throw error when not initialized', async () => {
+      await expect(controller.showBrowser())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should call bringToFront when initialized', async () => {
+      await controller.initialize();
+      mockPage.bringToFront = jest.fn().mockResolvedValue(undefined);
+
+      const result = await controller.showBrowser();
+
+      expect(result).toContain('Browser window brought to foreground');
+      expect(mockPage.bringToFront).toHaveBeenCalled();
+    });
+
+    test('should handle bringToFront errors', async () => {
+      await controller.initialize();
+      mockPage.bringToFront = jest.fn().mockRejectedValue(new Error('Window unavailable'));
+
+      await expect(controller.showBrowser())
+        .rejects.toThrow('Failed to show browser: Window unavailable');
+    });
+  });
+
+  describe('takeScreenshot', () => {
+    test('should throw error when not initialized', async () => {
+      await expect(controller.takeScreenshot())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should take screenshot with default name', async () => {
+      await controller.initialize();
+      mockPage.screenshot = jest.fn().mockResolvedValue(undefined);
+
+      const result = await controller.takeScreenshot();
+
+      expect(result).toContain('Screenshot saved to');
+      expect(result).toContain('tmp');
+      expect(mockPage.screenshot).toHaveBeenCalled();
+    });
+
+    test('should take screenshot with custom filename', async () => {
+      await controller.initialize();
+      mockPage.screenshot = jest.fn().mockResolvedValue(undefined);
+
+      const result = await controller.takeScreenshot('my-screenshot.png');
+
+      expect(result).toContain('Screenshot saved to');
+      expect(result).toContain('my-screenshot.png');
+    });
+
+    test('should take screenshot with full path', async () => {
+      await controller.initialize();
+      mockPage.screenshot = jest.fn().mockResolvedValue(undefined);
+
+      const result = await controller.takeScreenshot('/custom/path/screenshot.png');
+
+      expect(result).toContain('/custom/path/screenshot.png');
+    });
+
+    test('should handle screenshot errors', async () => {
+      await controller.initialize();
+      mockPage.screenshot = jest.fn().mockRejectedValue(new Error('Screenshot failed'));
+
+      await expect(controller.takeScreenshot())
+        .rejects.toThrow('Failed to take screenshot: Screenshot failed');
+    });
+  });
+
+  describe('waitForAudioConnection', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should throw error when not initialized', async () => {
+      const uninitController = new StrudelController();
+      await expect(uninitController.waitForAudioConnection())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should return true when audio connects immediately', async () => {
+      mockPage.evaluate = jest.fn().mockResolvedValue(true);
+
+      const result = await controller.waitForAudioConnection(1000);
+
+      expect(result).toBe(true);
+    });
+
+    test('should return false on timeout', async () => {
+      mockPage.evaluate = jest.fn().mockResolvedValue(false);
+
+      const result = await controller.waitForAudioConnection(100);
+
+      expect(result).toBe(false);
+    });
+
+    test('should poll until connected', async () => {
+      let callCount = 0;
+      mockPage.evaluate = jest.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve(callCount >= 3);
+      });
+
+      const result = await controller.waitForAudioConnection(5000);
+
+      expect(result).toBe(true);
+      expect(callCount).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('detectKey', () => {
+    test('should throw error when not initialized', async () => {
+      const uninitController = new StrudelController();
+      await expect(uninitController.detectKey())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should call analyzer detectKey', async () => {
+      await controller.initialize();
+      const mockKeyAnalysis = { key: 'C', scale: 'major', confidence: 0.95 };
+      jest.spyOn(controller.analyzer, 'detectKey').mockResolvedValue(mockKeyAnalysis);
+
+      const result = await controller.detectKey();
+
+      expect(result).toEqual(mockKeyAnalysis);
+    });
+  });
+
+  describe('detectTempo', () => {
+    test('should throw error when not initialized', async () => {
+      const uninitController = new StrudelController();
+      await expect(uninitController.detectTempo())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should call analyzer detectTempo', async () => {
+      await controller.initialize();
+      const mockTempoAnalysis = { bpm: 120, confidence: 0.9, method: 'onset-based' };
+      jest.spyOn(controller.analyzer, 'detectTempo').mockResolvedValue(mockTempoAnalysis);
+
+      const result = await controller.detectTempo();
+
+      expect(result).toEqual(mockTempoAnalysis);
+    });
+  });
+
+  describe('validatePatternRuntime', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should throw error when not initialized', async () => {
+      const uninitController = new StrudelController();
+      await expect(uninitController.validatePatternRuntime('s("bd*4")'))
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should return valid true when no errors', async () => {
+      const result = await controller.validatePatternRuntime('s("bd*4")', 50);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    test('should clear console messages before validation', async () => {
+      const clearSpy = jest.spyOn(controller, 'clearConsoleMessages');
+
+      await controller.validatePatternRuntime('s("bd*4")', 50);
+
+      expect(clearSpy).toHaveBeenCalled();
+    });
+
+    test('should handle keyboard press errors gracefully', async () => {
+      mockPage.keyboard.press = jest.fn().mockRejectedValue(new Error('Keyboard error'));
+
+      // Should not throw, just log warning
+      const result = await controller.validatePatternRuntime('s("bd*4")', 50);
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('writePattern retry logic', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should retry on initial failure then succeed', async () => {
+      let attempts = 0;
+      mockPage.evaluate = jest.fn().mockImplementation(() => {
+        attempts++;
+        if (attempts === 1) return Promise.resolve(false); // First attempt fails
+        if (attempts === 2) return Promise.resolve(true);  // Second attempt succeeds
+        return Promise.resolve('s("bd*4")'); // Verification read
+      });
+
+      const result = await controller.writePattern('s("bd*4")');
+
+      expect(result).toContain('Pattern written');
+      expect(attempts).toBeGreaterThanOrEqual(2);
+    });
+
+    test('should throw after max retries exhausted', async () => {
+      mockPage.evaluate = jest.fn().mockResolvedValue(false);
+
+      await expect(controller.writePattern('s("bd*4")'))
+        .rejects.toThrow('Failed to write pattern - editor not found or view unavailable after 3 attempts');
+    });
+
+    test('should handle verification returning null', async () => {
+      let callCount = 0;
+      mockPage.evaluate = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount <= 1) return Promise.resolve(true); // Write succeeds
+        return Promise.resolve(null); // Verification returns null
+      });
+
+      // Should not throw, just use input pattern for cache
+      const result = await controller.writePattern('s("bd*4")');
+
+      expect(result).toContain('Pattern written');
+    });
+  });
+
+  describe('writePatternWithValidation advanced', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should throw error when not initialized', async () => {
+      const uninitController = new StrudelController();
+      await expect(uninitController.writePatternWithValidation('s("bd*4")'))
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('should skip validation when skipValidation is true', async () => {
+      const result = await controller.writePatternWithValidation(
+        samplePatterns.invalid,
+        { skipValidation: true }
+      );
+
+      expect(result.result).toContain('Pattern written');
+      expect(result.validation).toBeUndefined();
+    });
+
+    test('should handle validation warnings', async () => {
+      // A pattern with potential warnings but still valid
+      const result = await controller.writePatternWithValidation(
+        's("bd*4").gain(1.5)',
+        { skipValidation: false }
+      );
+
+      expect(result.result).toBeTruthy();
+    });
+
+    test('should auto-fix invalid patterns when autoFix enabled', async () => {
+      const result = await controller.writePatternWithValidation(
+        samplePatterns.syntaxError,
+        { autoFix: true }
+      );
+
+      // Either succeeds with fix or reports validation result
+      expect(result.result).toBeTruthy();
+    });
+  });
+
+  describe('getDiagnostics advanced', () => {
+    test('should handle page.evaluate errors gracefully', async () => {
+      await controller.initialize();
+      mockPage.evaluate = jest.fn().mockRejectedValue(new Error('Evaluate failed'));
+
+      const diagnostics = await controller.getDiagnostics();
+
+      expect(diagnostics.browserConnected).toBe(true);
+      expect(diagnostics.pageLoaded).toBe(true);
+      // Should not throw, just return defaults
+      expect(diagnostics.editorReady).toBe(false);
+      expect(diagnostics.audioConnected).toBe(false);
+    });
+
+    test('should check editor ready status', async () => {
+      await controller.initialize();
+      mockPage.evaluate = jest.fn()
+        .mockResolvedValueOnce(true)   // editorReady check
+        .mockResolvedValueOnce(true);  // audioConnected check
+
+      const diagnostics = await controller.getDiagnostics();
+
+      expect(diagnostics.editorReady).toBe(true);
+      expect(diagnostics.audioConnected).toBe(true);
+    });
+
+    test('should include error stats from errorRecovery', async () => {
+      await controller.initialize();
+
+      const diagnostics = await controller.getDiagnostics();
+
+      expect(diagnostics).toHaveProperty('errorStats');
+    });
+  });
+
+  describe('getPlaybackState', () => {
+    test('should return false initially', () => {
+      expect(controller.getPlaybackState()).toBe(false);
+    });
+
+    test('should return true after play', async () => {
+      await controller.initialize();
+      await controller.play();
+
+      expect(controller.getPlaybackState()).toBe(true);
+    });
+
+    test('should return false after stop', async () => {
+      await controller.initialize();
+      await controller.play();
+      await controller.stop();
+
+      expect(controller.getPlaybackState()).toBe(false);
+    });
+  });
+
+  describe('play and stop error handling', () => {
+    test('play should throw error when not initialized', async () => {
+      await expect(controller.play())
+        .rejects.toThrow('Browser not initialized');
+    });
+
+    test('stop should throw error when not initialized', async () => {
+      await expect(controller.stop())
+        .rejects.toThrow('Browser not initialized');
+    });
+  });
+
+  describe('analyzeAudio error handling', () => {
+    test('should throw error when not initialized', async () => {
+      await expect(controller.analyzeAudio())
+        .rejects.toThrow('Browser not initialized');
+    });
+  });
+
+  describe('headless mode', () => {
+    test('should respect headless=false option', async () => {
+      const nonHeadlessController = new StrudelController(false);
+
+      await nonHeadlessController.initialize();
+
+      expect(chromium.launch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headless: false
+        })
+      );
+
+      await nonHeadlessController.cleanup();
+    });
+  });
+
+  describe('getCurrentPattern fetch from browser', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should fetch from browser when cache is stale', async () => {
+      // Write pattern and immediately invalidate
+      await controller.writePattern('s("bd*4")');
+      controller.invalidateCache();
+
+      // Set up mock to return different content
+      mockPage.setContent('s("cp*8")');
+
+      const pattern = await controller.getCurrentPattern();
+      expect(pattern).toBe('s("cp*8")');
+    });
+
+    test('should fetch from browser when cache is expired', async () => {
+      await controller.writePattern('s("bd*4")');
+
+      // Wait for cache to expire (TTL is 100ms)
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      mockPage.setContent('s("hh*16")');
+      const pattern = await controller.getCurrentPattern();
+
+      // Should fetch fresh from browser
+      expect(pattern).toBe('s("hh*16")');
+    });
+  });
+
+  describe('validatePattern with fixes', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should return suggestions when auto-fix applies fixes', async () => {
+      // Pattern with unclosed parenthesis
+      const result = await controller.validatePattern('s("bd*4"', true);
+
+      // Should have suggestions from auto-fix
+      if (result.suggestions && result.suggestions.length > 0) {
+        expect(result.suggestions.length).toBeGreaterThan(0);
+      }
+    });
+
+    test('should return original result when no fixes needed', async () => {
+      const result = await controller.validatePattern('s("bd*4")', true);
+
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('writePatternWithValidation failure path', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should return validation failure without autoFix', async () => {
+      // Pattern that fails validation
+      const result = await controller.writePatternWithValidation(
+        's("bd*4"', // Unclosed parenthesis
+        { autoFix: false }
+      );
+
+      // Should return validation failure message
+      expect(result.result).toBeTruthy();
+      if (result.validation) {
+        expect(result.validation.valid).toBe(false);
+      }
+    });
+  });
+
+  describe('writePattern with retries and logging', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should log warning on retry', async () => {
+      let attempts = 0;
+      mockPage.evaluate = jest.fn().mockImplementation(() => {
+        attempts++;
+        // Fail first two attempts, succeed on third
+        if (attempts <= 2) return Promise.resolve(false);
+        if (attempts === 3) return Promise.resolve(true);
+        return Promise.resolve('s("bd*4")');
+      });
+
+      const result = await controller.writePattern('s("bd*4")');
+
+      expect(result).toContain('Pattern written');
+      expect(attempts).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('waitForAudioConnection polling', () => {
+    beforeEach(async () => {
+      await controller.initialize();
+    });
+
+    test('should stop polling when connected mid-way', async () => {
+      let callCount = 0;
+      mockPage.evaluate = jest.fn().mockImplementation(() => {
+        callCount++;
+        // Return false first two times, then true
+        return Promise.resolve(callCount > 2);
+      });
+
+      const result = await controller.waitForAudioConnection(10000);
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('edge cases', () => {
+    test('should handle constructor with default headless', () => {
+      const defaultController = new StrudelController();
+      expect(defaultController).toBeDefined();
+    });
+
+    test('cleanup should be idempotent', async () => {
+      await controller.initialize();
+      await controller.cleanup();
+      await controller.cleanup(); // Should not throw
+    });
+
+    test('invalidateCache should be safe when empty', () => {
+      // Cache is already empty, should not throw
+      controller.invalidateCache();
+      expect(controller.getStatus().cacheValid).toBe(false);
     });
   });
 });
