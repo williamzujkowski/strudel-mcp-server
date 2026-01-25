@@ -63,9 +63,9 @@ describe('Strudel MCP Server Tools', () => {
       expect(Array.isArray(result.result.tools)).toBe(true);
     });
 
-    test('should have 40+ tools available', async () => {
+    test('should have 50+ tools available', async () => {
       const result = await sendRequest('tools/list');
-      expect(result.result.tools.length).toBeGreaterThanOrEqual(40);
+      expect(result.result.tools.length).toBeGreaterThanOrEqual(50);
     });
 
     test('should have all expected tool categories', async () => {

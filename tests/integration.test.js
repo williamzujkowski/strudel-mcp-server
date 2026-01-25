@@ -80,8 +80,8 @@ class IntegrationTester {
       if (!response.result || !response.result.tools) {
         throw new Error('Invalid response structure');
       }
-      if (response.result.tools.length < 40) {
-        throw new Error(`Expected 40+ tools, got ${response.result.tools.length}`);
+      if (response.result.tools.length < 50) {
+        throw new Error(`Expected 50+ tools, got ${response.result.tools.length}`);
       }
     });
     

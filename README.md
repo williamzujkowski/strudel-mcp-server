@@ -21,12 +21,14 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 
 - [Features](#-features)
 - [Installation](#-installation)
+- [Quick Reference](#-quick-reference)
 - [Quick Start](#-quick-start)
 - [Available Tools](#-available-tools-52)
 - [Usage Examples](#-usage-examples)
 - [Architecture](#-architecture)
 - [Advanced Usage](#-advanced-usage)
 - [Configuration](#-configuration)
+- [Security](#-security)
 - [Troubleshooting](#-troubleshooting)
 - [Development](#-development)
 - [Contributing](#-contributing)
@@ -70,9 +72,23 @@ Each example includes pattern code, BPM, key, and description. See [`patterns/ex
 
 ## 📦 Installation
 
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Node.js | 18.x or 20.x | LTS versions recommended |
+| npm | 8+ | Comes with Node.js |
+| Chromium | Latest | Auto-installed by Playwright |
+| Audio output | Any | Required for playback (speakers/headphones) |
+
+**Optional:** Docker for containerized deployment.
+
 ### From npm
 ```bash
 npm install -g @williamzujkowski/strudel-mcp-server
+
+# Install browser (required once)
+npx playwright install chromium
 ```
 
 ### From Source
@@ -89,6 +105,26 @@ npx playwright install chromium
 
 # Build the project
 npm run build
+```
+
+## 🚀 Quick Reference
+
+Common commands for immediate use:
+
+| Action | Command |
+|--------|---------|
+| Initialize browser | `init` |
+| Create techno beat | `generate_pattern` with `style: "techno"` |
+| Play pattern | `play` |
+| Stop playback | `stop` |
+| Get current pattern | `get_pattern` |
+| Analyze audio | `analyze` |
+| Save pattern | `save` with `name: "my-pattern"` |
+| Undo last change | `undo` |
+
+**One-shot workflow:**
+```
+compose with style: "dnb", key: "Am", bpm: 174, auto_play: true
 ```
 
 ## 🎯 Quick Start
@@ -906,7 +942,7 @@ npm run test:integration
 # - Pattern generation
 # - Audio analysis
 # - Pattern storage
-# - All 40+ tools
+# - All 52 tools
 ```
 
 #### 3. Manual Testing
@@ -1295,6 +1331,31 @@ s("bd*4")
   .every(8, x => x.sometimes(y => y.fast(2)))
 ```
 
+## 🔒 Security
+
+### Pattern Validation
+
+All patterns are validated before execution:
+- **Dangerous gain levels** (>2.0) are flagged
+- **Eval blocks** are rejected
+- **Path traversal** attacks are blocked in PatternStore
+
+### Browser Sandboxing
+
+- Playwright runs Chromium in sandbox mode
+- No access to local filesystem from browser context
+- Resource blocking prevents loading external content
+
+### Known Limitations
+
+- **No authentication**: The MCP server trusts all incoming requests
+- **Local only**: Designed for local development, not network deployment
+- **Pattern execution**: Patterns execute in browser context with audio access
+
+### Reporting Security Issues
+
+Found a vulnerability? Please [open a security issue](https://github.com/williamzujkowski/strudel-mcp-server/security/advisories/new) or email the maintainer directly. Do not disclose publicly until patched.
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -1362,7 +1423,7 @@ npm run build
 # Check if server responds
 echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js
 
-# Should return JSON with 40+ tools
+# Should return JSON with 52 tools
 
 # Reinstall MCP server in Claude
 claude mcp remove strudel
@@ -1502,7 +1563,7 @@ If you encounter issues not covered here:
 - **Report Bugs**: Found an issue? [Open a bug report](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
 - **Suggest Features**: Have ideas? [Create a feature request](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
 - **Improve Docs**: Fix typos, add examples, clarify confusing sections
-- **Write Tests**: Help us reach 80% coverage (currently 52%)
+- **Write Tests**: Help us reach 80% coverage (currently 69%)
 - **Fix Issues**: Check [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for bugs to fix
 - **Add Features**: Implement new tools or improve existing ones
 

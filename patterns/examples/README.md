@@ -6,13 +6,16 @@ Curated collection of music patterns showcasing the MCP server's generation capa
 
 ```
 examples/
-├── techno/      - Hard driving beats, acid basslines, 120-140 BPM
-├── house/       - 4/4 groove, soulful chords, 120-130 BPM
-├── dnb/         - Fast breakbeats, sub bass, 160-180 BPM
-├── ambient/     - Atmospheric pads, slow tempo, 60-90 BPM
-├── trap/        - 808 bass, hi-hat rolls, 130-150 BPM
-├── jungle/      - Chopped breaks, reggae influence, 160-180 BPM
-└── jazz/        - Swing feel, complex chords, 100-180 BPM
+├── techno/          - Hard driving beats, acid basslines, 120-140 BPM
+├── house/           - 4/4 groove, soulful chords, 120-130 BPM
+├── dnb/             - Fast breakbeats, sub bass, 160-180 BPM
+├── ambient/         - Atmospheric pads, slow tempo, 60-90 BPM
+├── trap/            - 808 bass, hi-hat rolls, 130-150 BPM
+├── jungle/          - Chopped breaks, reggae influence, 160-180 BPM
+├── jazz/            - Swing feel, complex chords, 100-180 BPM
+├── intelligent_dnb/ - Atmospheric, liquid, LTJ Bukem style, 160-175 BPM
+├── trip_hop/        - Portishead/Massive Attack style, 80-100 BPM
+└── boom_bap/        - DJ Premier/Alchemist style, 85-100 BPM
 ```
 
 ## Pattern Format
