@@ -1,7 +1,7 @@
 {
   "name": "modal-jazz",
   "genre": "jazz",
-  "pattern": "// jazz pattern in D at 120 BPM\nsetcpm(120)\n\nstack(\n  // Drums\n  s(\"bd*4, ~ cp ~ cp, hh*8\"),\n  \n  // Bass\n  note(\"D2 ~ F#2 ~ A2 ~\").s(\"sine\").gain(0.7),\n  \n  // Chords\n  note(\"Em7\" \"A7\" \"Dmaj7\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"d4 e5 f3 a5 g3 a4 e4 b3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// jazz pattern in D at 120 BPM\nsetcpm(120)\n\nstack(\n  // Drums\n  s(\"bd*4, ~ cp ~ cp, hh*8\"),\n  \n  // Bass\n  note(\"D2 ~ F#2 ~ A2 ~\").s(\"sine\").gain(0.7),\n  \n  // Chords\n  note(\"Em7\" \"A7\" \"Dmaj7\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"b5 c4 d3 e4 f4 g4 a5 b4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 120,
   "key": "D",
   "description": "Modal jazz with extended harmonies",
@@ -9,5 +9,5 @@
     "jazz",
     "modal jazz"
   ],
-  "timestamp": "2026-01-25T12:29:13.540Z"
+  "timestamp": "2026-01-25T12:51:30.519Z"
 }
