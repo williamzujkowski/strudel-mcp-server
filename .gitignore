@@ -74,3 +74,12 @@ PERFORMANCE_GUIDE.md
 
 # Future enhancements belong in GitHub Issues
 FUTURE_ENHANCEMENTS.md
+
+# Development/testing scripts
+play-*.js
+
+# Local Claude settings
+.claude/settings.local.json
+
+# Nexus agents config (local setup)
+nexus-agents.yaml
