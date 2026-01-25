@@ -22,6 +22,7 @@ export class StrudelController {
   private editorCache: string = '';
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL = 100; // milliseconds
+  private readonly MAX_CONSOLE_MESSAGES = 1000; // Ring buffer limit
   private isPlaying: boolean = false;
   private consoleErrors: string[] = [];
   private consoleWarnings: string[] = [];
@@ -102,6 +103,16 @@ export class StrudelController {
   }
 
   /**
+   * Pushes a message to an array with ring buffer behavior (FIFO eviction)
+   */
+  private pushWithLimit(arr: string[], message: string): void {
+    if (arr.length >= this.MAX_CONSOLE_MESSAGES) {
+      arr.shift(); // Remove oldest entry
+    }
+    arr.push(message);
+  }
+
+  /**
    * Sets up console error/warning monitoring
    * Captures Strudel runtime errors that static validation can't catch
    */
@@ -113,16 +124,16 @@ export class StrudelController {
       const text = msg.text();
 
       if (type === 'error') {
-        this.consoleErrors.push(text);
+        this.pushWithLimit(this.consoleErrors, text);
         this.logger.error('Strudel console error:', text);
       } else if (type === 'warning') {
-        this.consoleWarnings.push(text);
+        this.pushWithLimit(this.consoleWarnings, text);
         this.logger.warn('Strudel console warning:', text);
       }
     });
 
     this._page.on('pageerror', (error) => {
-      this.consoleErrors.push(error.message);
+      this.pushWithLimit(this.consoleErrors, error.message);
       this.logger.error('Strudel page error:', error.message);
     });
   }

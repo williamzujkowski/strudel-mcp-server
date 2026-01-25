@@ -14,12 +14,47 @@ export class PatternStore {
   private patternCache: Map<string, PatternData> = new Map();
   private listCache: { patterns: PatternData[], timestamp: number } | null = null;
   private readonly LIST_CACHE_TTL = 5000; // 5 seconds
+  private readonly MAX_CACHE_SIZE = 100; // LRU cache limit
   private directoryEnsured: boolean = false;
   private logger: Logger;
 
   constructor(private basePath: string) {
     this.logger = new Logger();
     this.ensureDirectory();
+  }
+
+  /**
+   * Sets a value in the cache with LRU eviction
+   * Maintains max cache size by evicting oldest entries
+   */
+  private setCacheWithLRU(name: string, data: PatternData): void {
+    // If already exists, delete first to update insertion order (LRU)
+    if (this.patternCache.has(name)) {
+      this.patternCache.delete(name);
+    }
+
+    // Evict oldest entries if at capacity
+    while (this.patternCache.size >= this.MAX_CACHE_SIZE) {
+      const oldestKey = this.patternCache.keys().next().value;
+      if (oldestKey) {
+        this.patternCache.delete(oldestKey);
+      }
+    }
+
+    this.patternCache.set(name, data);
+  }
+
+  /**
+   * Gets a value from cache and updates its LRU position
+   */
+  private getCacheWithLRU(name: string): PatternData | undefined {
+    const data = this.patternCache.get(name);
+    if (data) {
+      // Move to end (most recently used)
+      this.patternCache.delete(name);
+      this.patternCache.set(name, data);
+    }
+    return data;
   }
 
   private async ensureDirectory() {
@@ -46,8 +81,8 @@ export class PatternStore {
       timestamp: new Date().toISOString(),
     };
 
-    // Update cache
-    this.patternCache.set(name, data);
+    // Update cache with LRU eviction
+    this.setCacheWithLRU(name, data);
     this.listCache = null; // Invalidate list cache
 
     // Write file asynchronously
@@ -55,9 +90,10 @@ export class PatternStore {
   }
 
   async load(name: string): Promise<PatternData | null> {
-    // Check cache first
-    if (this.patternCache.has(name)) {
-      return this.patternCache.get(name)!;
+    // Check cache first with LRU update
+    const cached = this.getCacheWithLRU(name);
+    if (cached) {
+      return cached;
     }
 
     const filename = this.sanitizeFilename(name) + '.json';
@@ -67,8 +103,8 @@ export class PatternStore {
       const data = await fs.readFile(filepath, 'utf-8');
       const pattern = JSON.parse(data);
 
-      // Update cache
-      this.patternCache.set(name, pattern);
+      // Update cache with LRU eviction
+      this.setCacheWithLRU(name, pattern);
 
       return pattern;
     } catch (error) {
@@ -124,6 +160,18 @@ export class PatternStore {
   clearCache() {
     this.patternCache.clear();
     this.listCache = null;
+  }
+
+  /**
+   * Returns cache statistics for monitoring
+   */
+  getCacheStats(): { size: number; maxSize: number; listCacheValid: boolean } {
+    return {
+      size: this.patternCache.size,
+      maxSize: this.MAX_CACHE_SIZE,
+      listCacheValid: this.listCache !== null &&
+        (Date.now() - this.listCache.timestamp) < this.LIST_CACHE_TTL
+    };
   }
 
   /**

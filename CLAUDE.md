@@ -153,7 +153,7 @@ Adding context guidelines to CLAUDE.md after line 70.
 ## Project Purpose
 This is an **open source, actively developed** MCP server enabling AI agents to generate music via Strudel.cc using browser automation.
 
-**Current State:** Functional but experimental. 52% test coverage. Known issues exist (see GitHub Issues). Contributions welcome.
+**Current State:** Functional but experimental. 69% test coverage (goal: 80%). Known issues exist (see GitHub Issues). Contributions welcome.
 
 ## GitHub Issues Workflow
 
@@ -224,7 +224,7 @@ Closes #123"
 ## Core Architecture
 
 ```
-MCP Protocol Layer (42 tools)
+MCP Protocol Layer (52 tools)
     ↓
 Services: MusicTheory, PatternGenerator
     ↓
@@ -239,7 +239,7 @@ Integration: Playwright → Strudel.cc
 
 ### 1. EnhancedMCPServerFixed (`src/server/EnhancedMCPServerFixed.ts`)
 - **Purpose**: MCP protocol handling, tool registration
-- **Tools**: 42 registered tools for pattern generation, manipulation, analysis
+- **Tools**: 52 registered tools for pattern generation, manipulation, analysis
 - **Key Methods**: `setupHandlers()`, `executeTool()`, `handleToolsList()`
 - **State**: Manages undo/redo stacks, pattern cache
 
@@ -374,9 +374,9 @@ if (!validation.isValid) {
 
 ### Current Limitations
 - Single browser instance (no multi-session)
-- Tempo/key detection stubbed (lines marked "Coming soon")
-- Undo stack unbounded (memory growth risk)
-- Integration test import issue (MCP SDK ES modules)
+- Tempo/key detection accuracy may vary (Krumhansl-Schmuckler algorithm)
+- History bounded to 100 entries (MAX_HISTORY constant)
+- Browser tests require Playwright and are skipped in CI
 
 ### Security Considerations
 - Pattern validation prevents dangerous patterns (gain > 2.0, eval blocks)
@@ -389,16 +389,16 @@ if (!validation.isValid) {
 src/
 ├── index.ts                    # Entry point
 ├── server/
-│   └── EnhancedMCPServerFixed.ts  # MCP server (847 lines)
+│   └── EnhancedMCPServerFixed.ts  # MCP server (1435 lines)
 ├── controllers/
-│   └── StrudelController.ts    # Browser automation (100 lines)
+│   └── StrudelController.ts    # Browser automation (786 lines)
 ├── analyzers/
-│   └── AudioAnalyzer.ts        # Audio analysis (109 lines)
+│   └── AudioAnalyzer.ts        # Audio analysis (804 lines)
 ├── services/
-│   ├── MusicTheory.ts          # Music theory (149 lines)
-│   └── PatternGenerator.ts     # Pattern generation (192 lines)
+│   ├── MusicTheory.ts          # Music theory (204 lines)
+│   └── PatternGenerator.ts     # Pattern generation (684 lines)
 ├── storage/
-│   └── PatternStore.ts         # Persistence (127 lines)
+│   └── PatternStore.ts         # Persistence (205 lines)
 ├── utils/
 │   ├── Logger.ts               # Logging (23 lines)
 │   ├── PatternValidator.ts     # Validation (317 lines)

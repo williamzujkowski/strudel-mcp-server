@@ -751,7 +751,9 @@ export class EnhancedMCPServerFixed {
         InputValidator.validateStringLength(args.search, 'search', 1000, true);
         InputValidator.validateStringLength(args.replace, 'replace', 10000, true);
         const pattern = await this.getCurrentPatternSafe();
-        const replaced = pattern.replace(args.search, args.replace);
+        // Escape $ in replacement to prevent special sequence injection ($&, $1, $', etc.)
+        const safeReplacement = args.replace.replace(/\$/g, '$$$$');
+        const replaced = pattern.replace(args.search, safeReplacement);
         return await this.writePatternSafe(replaced);
       
       case 'play':

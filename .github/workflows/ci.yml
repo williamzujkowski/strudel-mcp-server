@@ -28,7 +28,10 @@ jobs:
       
       - name: Build TypeScript
         run: npm run build
-      
+
+      - name: Run tests
+        run: npm run test:nocov -- --testPathIgnorePatterns="browser"
+
       - name: Test MCP server initialization
         run: |
           # Test that the server can start and respond to basic requests
