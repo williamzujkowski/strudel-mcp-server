@@ -9,6 +9,13 @@ jest.mock('@google/generative-ai', () => ({
   }))
 }));
 
+// Mock google-auth-library
+jest.mock('google-auth-library', () => ({
+  GoogleAuth: jest.fn().mockImplementation(() => ({
+    getClient: jest.fn()
+  }))
+}));
+
 describe('GeminiService', () => {
   let service: GeminiService;
   let mockGenerateContent: jest.Mock;
@@ -53,9 +60,98 @@ describe('GeminiService', () => {
       expect(service.isAvailable()).toBe(true);
     });
 
-    it('should return false when API key is not configured', () => {
+    it('should return false when API key is not configured and ADC not checked', () => {
       const noKeyService = new GeminiService();
       expect(noKeyService.isAvailable()).toBe(false);
+    });
+  });
+
+  describe('isAvailableAsync', () => {
+    it('should return true when API key is configured', async () => {
+      const result = await service.isAvailableAsync();
+      expect(result).toBe(true);
+    });
+
+    it('should check ADC when no API key', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockResolvedValue({
+          getAccessToken: jest.fn().mockResolvedValue({ token: 'test-token' })
+        })
+      }));
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+      expect(result).toBe(true);
+    });
+
+    it('should return false when ADC not available', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No credentials'))
+      }));
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+      expect(result).toBe(false);
+    });
+
+    it('should cache ADC check result', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      const mockGetClient = jest.fn().mockResolvedValue({
+        getAccessToken: jest.fn().mockResolvedValue({ token: 'test-token' })
+      });
+      GoogleAuth.mockImplementation(() => ({
+        getClient: mockGetClient
+      }));
+
+      const noKeyService = new GeminiService();
+      await noKeyService.isAvailableAsync();
+      await noKeyService.isAvailableAsync();
+      await noKeyService.isAvailableAsync();
+
+      // getClient should only be called once due to caching
+      expect(mockGetClient).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ADC-based API calls', () => {
+    it('should use ADC when no API key provided', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockResolvedValue({
+          getAccessToken: jest.fn().mockResolvedValue({ token: 'adc-test-token' })
+        })
+      }));
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      const noKeyService = new GeminiService();
+      const feedback = await noKeyService.getCreativeFeedback('s("bd sd")');
+      expect(feedback.complexity).toBe('simple');
+    });
+
+    it('should sync isAvailable after ADC check', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockResolvedValue({
+          getAccessToken: jest.fn().mockResolvedValue({ token: 'adc-test-token' })
+        })
+      }));
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      const noKeyService = new GeminiService();
+      // Initially false (ADC not checked)
+      expect(noKeyService.isAvailable()).toBe(false);
+
+      // After async check, should be true
+      await noKeyService.isAvailableAsync();
+      expect(noKeyService.isAvailable()).toBe(true);
     });
   });
 
@@ -76,10 +172,15 @@ describe('GeminiService', () => {
       });
     });
 
-    it('should throw when API key not configured', async () => {
+    it('should throw when neither API key nor ADC configured', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No credentials'))
+      }));
+
       const noKeyService = new GeminiService();
       await expect(noKeyService.analyzeAudio(mockAudioBlob))
-        .rejects.toThrow('Gemini API key not configured');
+        .rejects.toThrow('Gemini API key not configured and ADC not available');
     });
 
     it('should analyze audio and return feedback', async () => {
@@ -149,10 +250,15 @@ describe('GeminiService', () => {
       });
     });
 
-    it('should throw when API key not configured', async () => {
+    it('should throw when neither API key nor ADC configured', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No credentials'))
+      }));
+
       const noKeyService = new GeminiService();
       await expect(noKeyService.suggestVariations(testPattern))
-        .rejects.toThrow('Gemini API key not configured');
+        .rejects.toThrow('Gemini API key not configured and ADC not available');
     });
 
     it('should return pattern suggestions', async () => {
@@ -197,10 +303,15 @@ describe('GeminiService', () => {
       });
     });
 
-    it('should throw when API key not configured', async () => {
+    it('should throw when neither API key nor ADC configured', async () => {
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No credentials'))
+      }));
+
       const noKeyService = new GeminiService();
       await expect(noKeyService.getCreativeFeedback(testPattern))
-        .rejects.toThrow('Gemini API key not configured');
+        .rejects.toThrow('Gemini API key not configured and ADC not available');
     });
 
     it('should return creative feedback', async () => {
@@ -306,7 +417,7 @@ describe('GeminiService', () => {
 
     it('should throw descriptive error on audio analysis failure', async () => {
       mockGenerateContent.mockRejectedValue(new Error('Network error'));
-      const blob = new Blob(['test']);
+      const blob = new Blob(['test-audio-data'], { type: 'audio/webm' });
 
       await expect(service.analyzeAudio(blob))
         .rejects.toThrow('Audio analysis failed: Network error');
@@ -317,6 +428,124 @@ describe('GeminiService', () => {
 
       await expect(service.suggestVariations('pattern'))
         .rejects.toThrow('Variation suggestion failed: Invalid request');
+    });
+  });
+
+  describe('input validation', () => {
+    it('should throw on empty pattern for getCreativeFeedback', async () => {
+      await expect(service.getCreativeFeedback(''))
+        .rejects.toThrow('Pattern cannot be empty');
+    });
+
+    it('should throw on whitespace-only pattern for getCreativeFeedback', async () => {
+      await expect(service.getCreativeFeedback('   \n\t   '))
+        .rejects.toThrow('Pattern cannot be empty');
+    });
+
+    it('should throw on null pattern for suggestVariations', async () => {
+      await expect(service.suggestVariations(null as any))
+        .rejects.toThrow('Pattern is required');
+    });
+
+    it('should throw on undefined pattern for suggestVariations', async () => {
+      await expect(service.suggestVariations(undefined as any))
+        .rejects.toThrow('Pattern is required');
+    });
+
+    it('should throw on non-string pattern', async () => {
+      await expect(service.getCreativeFeedback(123 as any))
+        .rejects.toThrow('Pattern must be a string');
+    });
+
+    it('should throw on pattern exceeding max length', async () => {
+      const longPattern = 's("bd")'.repeat(1000); // ~7000 chars
+      await expect(service.getCreativeFeedback(longPattern))
+        .rejects.toThrow('exceeds maximum length');
+    });
+
+    it('should include current length in max length error', async () => {
+      const longPattern = 's("bd")'.repeat(1000); // ~7000 chars
+      await expect(service.getCreativeFeedback(longPattern))
+        .rejects.toThrow(/current: \d+/);
+    });
+
+    it('should throw on empty audio blob', async () => {
+      const emptyBlob = new Blob([], { type: 'audio/webm' });
+      await expect(service.analyzeAudio(emptyBlob))
+        .rejects.toThrow('Audio analysis requires valid audio data');
+    });
+
+    it('should accept pattern at max length', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      // Create a pattern just under the default 5000 char limit
+      const pattern = 's("bd")'.repeat(700); // ~4900 chars
+      const feedback = await service.getCreativeFeedback(pattern);
+      expect(feedback.complexity).toBe('simple');
+    });
+  });
+
+  describe('rate limit error messages', () => {
+    it('should include wait time in rate limit error', async () => {
+      const fastService = new GeminiService({ apiKey: 'test-key' });
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      // Exhaust rate limit
+      for (let i = 0; i < 10; i++) {
+        await fastService.getCreativeFeedback(`pattern${i}`);
+      }
+
+      // Next request should fail with wait time
+      await expect(fastService.getCreativeFeedback('one-more'))
+        .rejects.toThrow(/Wait \d+ seconds/);
+    });
+
+    it('should provide getSecondsUntilAvailable method', async () => {
+      const fastService = new GeminiService({ apiKey: 'test-key' });
+
+      // Initially should be 0
+      expect(fastService.getSecondsUntilAvailable()).toBe(0);
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      // Exhaust rate limit
+      for (let i = 0; i < 10; i++) {
+        await fastService.getCreativeFeedback(`pattern${i}`);
+      }
+
+      // Should return positive wait time
+      const waitTime = fastService.getSecondsUntilAvailable();
+      expect(waitTime).toBeGreaterThan(0);
+      expect(waitTime).toBeLessThanOrEqual(60);
+    });
+  });
+
+  describe('timeout handling', () => {
+    it('should use configurable timeout', () => {
+      const customService = new GeminiService({
+        apiKey: 'test-key',
+        timeoutSeconds: 60
+      });
+
+      expect(customService.isAvailable()).toBe(true);
+    });
+
+    it('should use configurable max pattern length', async () => {
+      const customService = new GeminiService({
+        apiKey: 'test-key',
+        maxPatternLength: 100
+      });
+
+      const longPattern = 's("bd")'.repeat(20); // 140 chars
+      await expect(customService.getCreativeFeedback(longPattern))
+        .rejects.toThrow('exceeds maximum length of 100');
     });
   });
 });

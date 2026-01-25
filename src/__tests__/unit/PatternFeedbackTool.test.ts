@@ -220,7 +220,7 @@ describe('get_pattern_feedback Tool', () => {
 
     test('should handle rate limit errors gracefully', async () => {
       mockGeminiService.getCreativeFeedback.mockRejectedValue(
-        new Error('Rate limit exceeded. Max 10 requests per minute.')
+        new Error('Rate limit exceeded (10 requests/minute). Wait 45 seconds before retrying.')
       );
 
       const result = await (server as any).executeTool('get_pattern_feedback', {});
@@ -231,13 +231,23 @@ describe('get_pattern_feedback Tool', () => {
 
     test('should provide actionable message on rate limit', async () => {
       mockGeminiService.getCreativeFeedback.mockRejectedValue(
-        new Error('Rate limit exceeded. Max 10 requests per minute.')
+        new Error('Rate limit exceeded (10 requests/minute). Wait 45 seconds before retrying.')
       );
 
       const result = await (server as any).executeTool('get_pattern_feedback', {});
 
       // Error message should provide actionable guidance (case insensitive)
       expect(result.error.toLowerCase()).toContain('wait');
+    });
+
+    test('should include wait time in rate limit error', async () => {
+      mockGeminiService.getCreativeFeedback.mockRejectedValue(
+        new Error('Rate limit exceeded (10 requests/minute). Wait 30 seconds before retrying.')
+      );
+
+      const result = await (server as any).executeTool('get_pattern_feedback', {});
+
+      expect(result.error).toContain('seconds');
     });
   });
 
@@ -294,13 +304,23 @@ describe('get_pattern_feedback Tool', () => {
 
     test('should handle timeout errors', async () => {
       mockGeminiService.getCreativeFeedback.mockRejectedValue(
-        new Error('Creative feedback failed: Request timed out')
+        new Error('Creative feedback timed out. The pattern may be too complex. Try a simpler pattern.')
       );
 
       const result = await (server as any).executeTool('get_pattern_feedback', {});
 
       expect(result.error).toBeDefined();
       expect(result.error).toContain('timed out');
+    });
+
+    test('should provide actionable message on timeout', async () => {
+      mockGeminiService.getCreativeFeedback.mockRejectedValue(
+        new Error('Creative feedback timed out. The pattern may be too complex. Try a simpler pattern.')
+      );
+
+      const result = await (server as any).executeTool('get_pattern_feedback', {});
+
+      expect(result.error.toLowerCase()).toContain('pattern');
     });
   });
 

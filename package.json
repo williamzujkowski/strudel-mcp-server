@@ -35,6 +35,7 @@
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@tonejs/midi": "^2.0.28",
+    "google-auth-library": "^10.5.0",
     "playwright": "^1.40.0"
   },
   "devDependencies": {

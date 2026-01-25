@@ -1730,11 +1730,11 @@ export class EnhancedMCPServerFixed {
     } catch (error: any) {
       this.logger.error('Pattern feedback failed', error);
 
-      // Handle rate limit errors gracefully
+      // Handle rate limit errors gracefully - pass through the detailed error message
       if (error.message?.includes('rate limit') || error.message?.includes('Rate limit')) {
         return {
           gemini_available: true,
-          error: 'Rate limit exceeded. Wait a minute before requesting more feedback.'
+          error: error.message // Pass through the detailed rate limit message with wait time
         };
       }
 
