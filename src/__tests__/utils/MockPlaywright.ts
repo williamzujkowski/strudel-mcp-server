@@ -43,6 +43,11 @@ export class MockPage implements Partial<Page> {
     return new Promise(resolve => setTimeout(resolve, Math.min(timeout, 10)));
   }
 
+  async waitForFunction(fn: Function, options?: any): Promise<any> {
+    // Mock always succeeds - simulates CodeMirror being ready
+    return {};
+  }
+
   async click(selector: string, options?: any): Promise<void> {
     if (selector.includes('play')) {
       this.isPlayingState = true;

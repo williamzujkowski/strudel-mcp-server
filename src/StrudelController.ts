@@ -80,8 +80,18 @@ export class StrudelController {
       timeout: 15000,
     });
 
-    // Wait for editor with optimized timeout
+    // Wait for editor element to appear
     await this._page.waitForSelector('.cm-content', { timeout: 8000 });
+
+    // Wait for CodeMirror to fully initialize (attach __view)
+    // This fixes race condition where DOM exists but CM isn't ready
+    await this._page.waitForFunction(
+      () => {
+        const editor = document.querySelector('.cm-content');
+        return editor && (editor as any).__view;
+      },
+      { timeout: 5000 }
+    );
 
     // Set up console monitoring for runtime errors
     this.setupConsoleMonitoring();
@@ -129,23 +139,39 @@ export class StrudelController {
     // Invalidate cache before write to prevent stale reads
     this.invalidateCache();
 
-    // Use evaluate for faster direct manipulation
-    const success = await this._page.evaluate((newPattern) => {
-      const editor = document.querySelector('.cm-content') as HTMLElement;
-      if (editor) {
-        const view = (editor as any).__view;
-        if (view) {
-          view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: newPattern }
-          });
-          return true;
+    // Retry logic for timing edge cases
+    const maxRetries = 3;
+    const retryDelay = 100; // ms
+    let success = false;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      // Use evaluate for faster direct manipulation
+      success = await this._page.evaluate((newPattern) => {
+        const editor = document.querySelector('.cm-content') as HTMLElement;
+        if (editor) {
+          const view = (editor as any).__view;
+          if (view) {
+            view.dispatch({
+              changes: { from: 0, to: view.state.doc.length, insert: newPattern }
+            });
+            return true;
+          }
         }
+        return false;
+      }, pattern);
+
+      if (success) {
+        break;
       }
-      return false;
-    }, pattern);
+
+      if (attempt < maxRetries - 1) {
+        this.logger.warn(`Write attempt ${attempt + 1} failed, retrying...`);
+        await this._page.waitForTimeout(retryDelay);
+      }
+    }
 
     if (!success) {
-      throw new Error('Failed to write pattern - editor not found or view unavailable');
+      throw new Error('Failed to write pattern - editor not found or view unavailable after 3 attempts');
     }
 
     // Verify the write by reading back from browser (fixes cache sync issues)
@@ -730,8 +756,10 @@ export class StrudelController {
 
     if (this._page) {
       try {
+        // Check both that element exists AND CodeMirror view is attached
         diagnostics.editorReady = await this._page.evaluate(() => {
-          return document.querySelector('.cm-content') !== null;
+          const editor = document.querySelector('.cm-content');
+          return editor !== null && (editor as any).__view !== undefined;
         });
 
         diagnostics.audioConnected = await this._page.evaluate(() => {
