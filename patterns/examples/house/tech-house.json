@@ -1,7 +1,7 @@
 {
   "name": "tech-house",
   "genre": "house",
-  "pattern": "// house pattern in A at 126 BPM\nsetcpm(126)\n\nstack(\n  // Drums\n  s(\"bd*4, [~ hh]*4, ~ cp ~ cp, oh ~ oh ~\"),\n  \n  // Bass\n  note(\"A2 ~ A2 ~\").s(\"sine\").gain(0.8),\n  \n  // Chords\n  note(\"A\" \"E\" \"F#m\" \"D\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"c3 g4 a5 e4 f4 g4 g3 a3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// house pattern in A at 126 BPM\nsetcpm(126)\n\nstack(\n  // Drums\n  s(\"bd*4, [~ hh]*4, ~ cp ~ cp, oh ~ oh ~\"),\n  \n  // Bass\n  note(\"A2 ~ A2 ~\").s(\"sine\").gain(0.8),\n  \n  // Chords\n  note(\"A\" \"E\" \"F#m\" \"D\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"g5 f5 e4 f4 c3 d3 e3 b3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 126,
   "key": "A",
   "description": "Tech house with hypnotic groove",
@@ -9,5 +9,5 @@
     "house",
     "tech house"
   ],
-  "timestamp": "2025-12-13T04:36:07.644Z"
+  "timestamp": "2026-01-25T12:29:13.532Z"
 }

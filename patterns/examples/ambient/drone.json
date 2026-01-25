@@ -1,7 +1,7 @@
 {
   "name": "drone",
   "genre": "ambient",
-  "pattern": "// ambient pattern in G at 60 BPM\nsetcpm(60)\n\nstack(\n  // Drums\n  s(\"bd ~ ~ ~, ~ ~ ~ hh:8, ~ ~ oh:5 ~\").room(0.9).gain(0.5),\n  \n  // Bass\n  note(\"G1\").s(\"sine\").attack(2).release(4).gain(0.6),\n  \n  // Chords\n  note(\"G\" \"D\" \"Em\" \"C\").s(\"sawtooth\").attack(2).release(4).room(0.8).gain(0.6),\n  \n  // Melody\n  note(\"a#3 d5 d#4 d5 d#5 d4 d#3 d4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// ambient pattern in G at 60 BPM\nsetcpm(60)\n\nstack(\n  // Drums\n  s(\"bd ~ ~ ~, ~ ~ ~ hh:8, ~ ~ oh:5 ~\").room(0.9).gain(0.5),\n  \n  // Bass\n  note(\"G1\").s(\"sine\").attack(2).release(4).gain(0.6),\n  \n  // Chords\n  note(\"G\" \"D\" \"Em\" \"C\").s(\"sawtooth\").attack(2).release(4).room(0.8).gain(0.6),\n  \n  // Melody\n  note(\"f5 g5 g3 f3 g5 d4 c3 a#4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 60,
   "key": "G",
   "description": "Minimalist drone ambient",
@@ -9,5 +9,5 @@
     "ambient",
     "drone"
   ],
-  "timestamp": "2025-12-13T04:36:07.657Z"
+  "timestamp": "2026-01-25T12:29:13.535Z"
 }

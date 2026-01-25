@@ -1,7 +1,7 @@
 {
   "name": "cloud-trap",
   "genre": "trap",
-  "pattern": "// trap pattern in B at 135 BPM\nsetcpm(135)\n\nstack(\n  // Drums\n  s(\"bd [bd bd] ~ bd, ~ cp ~ cp, hh*16\").swing(0.2),\n  \n  // Bass\n  note(\"B2 B2 B2 B2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"B\" \"F#\" \"G#m\" \"E\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"e4 b4 c#3 a4 b4 g5 a4 c#5\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// trap pattern in B at 135 BPM\nsetcpm(135)\n\nstack(\n  // Drums\n  s(\"bd [bd bd] ~ bd, ~ cp ~ cp, hh*16\").swing(0.2),\n  \n  // Bass\n  note(\"B2 B2 B2 B2\").s(\"sawtooth\").cutoff(800),\n  \n  // Chords\n  note(\"B\" \"F#\" \"G#m\" \"E\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"e4 g5 f#3 e3 f#5 a4 g3 a4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 135,
   "key": "B",
   "description": "Cloud trap with ethereal atmosphere",
@@ -9,5 +9,5 @@
     "trap",
     "cloud trap"
   ],
-  "timestamp": "2025-12-13T04:36:07.665Z"
+  "timestamp": "2026-01-25T12:29:13.537Z"
 }
