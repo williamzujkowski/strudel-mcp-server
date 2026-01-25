@@ -185,21 +185,35 @@ export class GeminiService {
   }
 
   /**
-   * Get the config path for the Gemini CLI based on platform
-   * @returns The path to the Gemini CLI settings file
+   * Get all possible config paths for the Gemini CLI based on platform
+   * @returns Array of paths to check for Gemini CLI settings
    */
-  getGeminiCliConfigPath(): string {
+  getGeminiCliConfigPaths(): string[] {
     const homeDir = os.homedir();
     const platform = process.platform;
+    const paths: string[] = [];
+
+    // Primary location per Gemini CLI docs: ~/.gemini/settings.json
+    paths.push(path.join(homeDir, '.gemini', 'settings.json'));
 
     if (platform === 'win32') {
-      return path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'gemini', 'settings.json');
+      paths.push(path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'gemini', 'settings.json'));
     } else if (platform === 'darwin') {
-      return path.join(homeDir, 'Library', 'Application Support', 'gemini', 'settings.json');
-    } else {
-      // Linux and other Unix-like systems
-      return path.join(homeDir, '.config', 'gemini', 'settings.json');
+      paths.push(path.join(homeDir, 'Library', 'Application Support', 'gemini', 'settings.json'));
     }
+
+    // XDG config location as fallback
+    paths.push(path.join(homeDir, '.config', 'gemini', 'settings.json'));
+
+    return paths;
+  }
+
+  /**
+   * Get the primary config path for the Gemini CLI (for backwards compatibility)
+   * @returns The primary path to the Gemini CLI settings file
+   */
+  getGeminiCliConfigPath(): string {
+    return this.getGeminiCliConfigPaths()[0];
   }
 
   /**
@@ -224,41 +238,73 @@ export class GeminiService {
   }
 
   /**
-   * Perform the actual CLI credentials check
+   * Perform the actual CLI credentials check across all possible locations
    */
   private async performCliCredentialsCheck(): Promise<string | undefined> {
-    try {
-      const configPath = this.getGeminiCliConfigPath();
-      const content = await fs.readFile(configPath, 'utf-8');
-      const settings = JSON.parse(content);
+    const homeDir = os.homedir();
 
-      // Check for various possible key names
-      const apiKey = settings.apiKey || settings.api_key || settings.geminiApiKey || settings.GEMINI_API_KEY;
+    // First check for API keys in settings.json files
+    const configPaths = this.getGeminiCliConfigPaths();
 
-      if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
-        this.logger.debug('Gemini CLI credentials loaded from config file');
-        // Set the API key if not already set
-        if (!this.apiKey) {
-          this.apiKey = apiKey;
+    for (const configPath of configPaths) {
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        const settings = JSON.parse(content);
+
+        // Check for various possible key names the CLI might use
+        const apiKey = settings.apiKey ||
+                       settings.api_key ||
+                       settings.geminiApiKey ||
+                       settings.GEMINI_API_KEY ||
+                       settings.googleApiKey ||
+                       settings.GOOGLE_API_KEY;
+
+        if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
+          this.logger.debug(`Gemini CLI credentials loaded from ${configPath}`);
+          // Set the API key if not already set
+          if (!this.apiKey) {
+            this.apiKey = apiKey;
+          }
+          this.cliCredentialsChecked = true;
+          return apiKey;
         }
-        return apiKey;
-      }
 
-      this.logger.debug('No API key found in Gemini CLI config');
-      return undefined;
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        this.logger.debug('Gemini CLI config file not found');
-      } else if (error instanceof SyntaxError) {
-        this.logger.debug('Gemini CLI config file is not valid JSON');
-      } else {
-        this.logger.debug('Failed to load Gemini CLI credentials', error);
+        this.logger.debug(`Config found at ${configPath} but no API key present`);
+      } catch (error: any) {
+        if (error.code === 'ENOENT') {
+          this.logger.debug(`Gemini CLI config not found at ${configPath}`);
+        } else if (error instanceof SyntaxError) {
+          this.logger.debug(`Invalid JSON in ${configPath}`);
+        } else {
+          this.logger.debug(`Failed to read ${configPath}`, error);
+        }
+        // Continue to next path
       }
-      return undefined;
-    } finally {
-      this.cliCredentialsChecked = true;
-      this.cliCredentialsPromise = null;
     }
+
+    // Check for OAuth credentials from Gemini CLI (stored in oauth_creds.json)
+    const oauthCredsPath = path.join(homeDir, '.gemini', 'oauth_creds.json');
+    try {
+      const content = await fs.readFile(oauthCredsPath, 'utf-8');
+      const oauthCreds = JSON.parse(content);
+
+      // OAuth credentials from Gemini CLI contain access_token and refresh_token
+      if (oauthCreds.access_token || oauthCreds.accessToken) {
+        this.logger.debug('Gemini CLI OAuth credentials found - will use ADC flow');
+        // OAuth credentials exist - the ADC flow should be able to use them
+        // Mark as checked but return undefined to fall through to ADC
+        this.cliCredentialsChecked = true;
+        this.cliCredentialsPromise = null;
+        return undefined;
+      }
+    } catch {
+      // OAuth creds file not found or invalid - that's fine
+    }
+
+    this.logger.debug('No Gemini CLI credentials found in any location');
+    this.cliCredentialsChecked = true;
+    this.cliCredentialsPromise = null;
+    return undefined;
   }
 
   /**

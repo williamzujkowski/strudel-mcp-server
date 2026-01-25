@@ -177,44 +177,56 @@ describe('GeminiService', () => {
       }));
     });
 
-    it('should return correct config path for Linux', () => {
+    it('should return primary config path as ~/.gemini/settings.json', () => {
+      const service = new GeminiService();
+      const configPath = service.getGeminiCliConfigPath();
+
+      // Primary path is always ~/.gemini/settings.json per Gemini CLI docs
+      expect(configPath).toBe(path.join(os.homedir(), '.gemini', 'settings.json'));
+    });
+
+    it('should return multiple config paths including primary and fallbacks for Linux', () => {
       const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
       Object.defineProperty(process, 'platform', { value: 'linux' });
 
       const service = new GeminiService();
-      const configPath = service.getGeminiCliConfigPath();
+      const configPaths = service.getGeminiCliConfigPaths();
 
-      expect(configPath).toBe(path.join(os.homedir(), '.config', 'gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join(os.homedir(), '.gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join(os.homedir(), '.config', 'gemini', 'settings.json'));
+      expect(configPaths[0]).toBe(path.join(os.homedir(), '.gemini', 'settings.json')); // Primary first
 
       if (originalPlatform) {
         Object.defineProperty(process, 'platform', originalPlatform);
       }
     });
 
-    it('should return correct config path for macOS', () => {
+    it('should include macOS-specific path for darwin platform', () => {
       const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
       Object.defineProperty(process, 'platform', { value: 'darwin' });
 
       const service = new GeminiService();
-      const configPath = service.getGeminiCliConfigPath();
+      const configPaths = service.getGeminiCliConfigPaths();
 
-      expect(configPath).toBe(path.join(os.homedir(), 'Library', 'Application Support', 'gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join(os.homedir(), '.gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join(os.homedir(), 'Library', 'Application Support', 'gemini', 'settings.json'));
 
       if (originalPlatform) {
         Object.defineProperty(process, 'platform', originalPlatform);
       }
     });
 
-    it('should return correct config path for Windows', () => {
+    it('should include Windows-specific path for win32 platform', () => {
       const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
       const originalAppData = process.env.APPDATA;
       Object.defineProperty(process, 'platform', { value: 'win32' });
       process.env.APPDATA = 'C:\\Users\\Test\\AppData\\Roaming';
 
       const service = new GeminiService();
-      const configPath = service.getGeminiCliConfigPath();
+      const configPaths = service.getGeminiCliConfigPaths();
 
-      expect(configPath).toBe(path.join('C:\\Users\\Test\\AppData\\Roaming', 'gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join(os.homedir(), '.gemini', 'settings.json'));
+      expect(configPaths).toContain(path.join('C:\\Users\\Test\\AppData\\Roaming', 'gemini', 'settings.json'));
 
       if (originalPlatform) {
         Object.defineProperty(process, 'platform', originalPlatform);
