@@ -30,10 +30,18 @@ All notable changes to the Strudel MCP Server will be documented in this file.
 - Audio analyzer diagnostic hints for better debugging (#45)
 - Pattern validation now triggers evaluation for error detection (#46)
 
+### Security
+- **CRITICAL**: Removed `executeInStrudelContext()` method (#56)
+  - Used `new Function()` constructor which is equivalent to `eval()`
+  - Method was not used in production code, only in tests
+  - Pattern execution now uses safe `writePattern()` + `play()` path
+
 ### Documentation
 - Updated README with accurate tool counts (52 tools)
-- Fixed test counts (712 passing, 69% coverage)
-- Added missing tool sections (Audio Analysis, UX, Performance)
+- Fixed test counts (704 passing, 69% coverage)
+- Added Prerequisites section with requirements table
+- Added Quick Reference section for common commands
+- Added Security section documenting validation and sandboxing
 - Removed inaccurate claims from previous changelog entries
 
 ## [2.2.0] - 2025-12-12

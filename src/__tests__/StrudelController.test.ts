@@ -686,67 +686,8 @@ describe('StrudelController', () => {
     });
   });
 
-  describe('executeInStrudelContext', () => {
-    beforeEach(async () => {
-      await controller.initialize();
-    });
-
-    test('should execute valid code', async () => {
-      const evaluateSpy = jest.spyOn(mockPage, 'evaluate');
-      await controller.executeInStrudelContext('s("bd*4")');
-
-      expect(evaluateSpy).toHaveBeenCalled();
-    });
-
-    test('should throw error for invalid code', async () => {
-      await expect(controller.executeInStrudelContext('invalid syntax {{{'))
-        .rejects.toThrow('Code validation failed');
-    });
-
-    test('should throw error when not initialized', async () => {
-      const uninitController = new StrudelController();
-      await expect(uninitController.executeInStrudelContext('s("bd*4")'))
-        .rejects.toThrow('Browser not initialized');
-    });
-
-    test('should validate code before execution', async () => {
-      // Code validation prevents execution - test with invalid syntax
-      await expect(controller.executeInStrudelContext('invalid {{{ syntax'))
-        .rejects.toThrow('Code validation failed');
-    });
-
-    test('should handle evaluation errors', async () => {
-      mockPage.evaluate = jest.fn().mockRejectedValue(new Error('Evaluation failed'));
-
-      await expect(controller.executeInStrudelContext('s("bd*4")'))
-        .rejects.toThrow('Execution failed');
-    });
-
-    test('should execute code in page context', async () => {
-      const evaluateSpy = jest.spyOn(mockPage, 'evaluate');
-
-      await controller.executeInStrudelContext('s("bd*4")');
-
-      expect(evaluateSpy).toHaveBeenCalled();
-      const callArgs = evaluateSpy.mock.calls[0];
-      expect(callArgs).toBeDefined();
-    });
-
-    test('should reject code with syntax errors', async () => {
-      await expect(controller.executeInStrudelContext('s("bd*4"'))
-        .rejects.toThrow();
-    });
-
-    test('should pass validation suggestions in error', async () => {
-      try {
-        await controller.executeInStrudelContext('invalid {{{ code');
-        fail('Should have thrown error');
-      } catch (error: any) {
-        expect(error.message).toContain('validation failed');
-        expect(error.message).toContain('Suggestions');
-      }
-    });
-  });
+  // SECURITY: executeInStrudelContext tests removed in issue #56
+  // The method was removed due to Function constructor injection vulnerability
 
   describe('pattern statistics', () => {
     beforeEach(async () => {
@@ -843,8 +784,9 @@ describe('StrudelController', () => {
     test('should handle page evaluation errors', async () => {
       mockPage.evaluate = jest.fn().mockRejectedValue(new Error('Evaluation failed'));
 
-      await expect(controller.executeInStrudelContext('invalid code'))
-        .rejects.toThrow('Execution failed');
+      // Test error handling via getCurrentPattern which uses page.evaluate
+      await expect(controller.getCurrentPattern())
+        .rejects.toThrow('Evaluation failed');
     });
 
     test('should handle selector timeout', async () => {

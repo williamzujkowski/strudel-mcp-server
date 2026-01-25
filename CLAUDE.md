@@ -304,7 +304,7 @@ npm run validate       # Test MCP protocol
 
 ### Testing
 ```bash
-npm test              # Run Jest tests (146 tests)
+npm test              # Run Jest tests (704 tests)
 npm run test:watch    # Watch mode
 ```
 
@@ -404,7 +404,7 @@ src/
 │   ├── PatternValidator.ts     # Validation (317 lines)
 │   ├── ErrorRecovery.ts        # Error handling (387 lines)
 │   └── PerformanceMonitor.ts   # Monitoring (144 lines)
-└── __tests__/                  # Jest tests (146 tests)
+└── __tests__/                  # Jest tests (704 tests)
 ```
 
 ## Testing Strategy

@@ -15,7 +15,7 @@
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
 
-**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 69% with 712 tests passing (743 total, 31 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 69% with 704 tests passing (735 total, 31 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
 
 ## Table of Contents
 
@@ -44,7 +44,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - **Session Management**: Save, load, undo/redo with pattern storage
 
 ### 🔧 Testing & Development Status
-- ✅ **Test Suite**: 712 tests passing (743 total, 31 skipped)
+- ✅ **Test Suite**: 704 tests passing (735 total, 31 skipped)
 - ⚠️ **Code Coverage**: 69% statement coverage (goal: 80%)
 - ✅ **Browser Integration**: Works with live Strudel.cc website
 - ✅ **Audio Analysis**: Real-time FFT analysis functional

@@ -571,43 +571,9 @@ export class StrudelController {
     };
   }
 
-  /**
-   * Executes JavaScript in the Strudel context
-   * @nist si-10 "Input validation"
-   * @param code - JavaScript code to execute (must pass pattern validation)
-   * @returns Execution result
-   * @throws {Error} When browser not initialized or code validation fails
-   */
-  async executeInStrudelContext(code: string): Promise<any> {
-    if (!this._page) {
-      throw new Error('Browser not initialized. Run init tool first.');
-    }
-
-    // Validate code before execution to prevent dangerous patterns
-    const validation = this.validator.validate(code);
-    if (!validation.valid) {
-      throw new Error(
-        `Code validation failed: ${validation.errors.join('; ')}. ` +
-        `Suggestions: ${validation.suggestions.join('; ')}`
-      );
-    }
-
-    try {
-      // Use Function constructor with restricted scope instead of raw eval
-      // This executes in Strudel's context via page.evaluate, not in Node
-      return await this._page.evaluate((jsCode) => {
-        // Execute in the page's Strudel context where Strudel functions are available
-        const fn = new Function('return ' + jsCode);
-        return fn();
-      }, code);
-    } catch (error: any) {
-      this.logger.error('Failed to execute code in Strudel context', {
-        code: code.substring(0, 100),
-        error: error.message
-      });
-      throw new Error(`Execution failed: ${error.message}`);
-    }
-  }
+  // SECURITY: executeInStrudelContext was removed in issue #56
+  // It used new Function() which is equivalent to eval() and poses injection risks.
+  // Pattern execution should go through writePattern() + play() which is the safe path.
 
   /**
    * Gets console errors captured since last clear
