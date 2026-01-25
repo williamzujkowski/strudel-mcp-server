@@ -1,7 +1,7 @@
 {
   "name": "deep-house",
   "genre": "house",
-  "pattern": "// house pattern in D at 122 BPM\nsetcpm(122)\n\nstack(\n  // Drums\n  s(\"bd*4, [~ hh]*4, ~ cp ~ cp, oh ~ oh ~\"),\n  \n  // Bass\n  note(\"D2 ~ D2 ~\").s(\"sine\").gain(0.8),\n  \n  // Chords\n  note(\"D\" \"A\" \"Bm\" \"G\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"a#5 f4 a#3 a3 e4 g3 f5 g4\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
+  "pattern": "// house pattern in D at 122 BPM\nsetcpm(122)\n\nstack(\n  // Drums\n  s(\"bd*4, [~ hh]*4, ~ cp ~ cp, oh ~ oh ~\"),\n  \n  // Bass\n  note(\"D2 ~ D2 ~\").s(\"sine\").gain(0.8),\n  \n  // Chords\n  note(\"D\" \"A\" \"Bm\" \"G\").s(\"sawtooth\").struct(\"1 ~ 1 ~\").release(0.1).gain(0.6),\n  \n  // Melody\n  note(\"f5 g4 f5 g5 a5 a5 g5 f3\").s(\"triangle\").struct(\"~ 1 ~ 1 1 ~ 1 ~\").delay(0.25).room(0.3).gain(0.5)\n).gain(0.8)",
   "bpm": 122,
   "key": "D",
   "description": "Deep house with soulful chords",
@@ -9,5 +9,5 @@
     "house",
     "deep house"
   ],
-  "timestamp": "2026-01-25T13:22:29.342Z"
+  "timestamp": "2026-01-25T13:38:07.459Z"
 }
