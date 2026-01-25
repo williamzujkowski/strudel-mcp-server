@@ -8,16 +8,21 @@ export class PerformanceMonitor {
   }> = new Map();
 
   private startTimes: Map<string, number> = new Map();
+  private getTime: () => number;
+
+  constructor(timeProvider?: () => number) {
+    this.getTime = timeProvider || (() => performance.now());
+  }
 
   startOperation(operationName: string): void {
-    this.startTimes.set(operationName, performance.now());
+    this.startTimes.set(operationName, this.getTime());
   }
 
   endOperation(operationName: string, success: boolean = true): number {
     const startTime = this.startTimes.get(operationName);
-    if (!startTime) return 0;
+    if (startTime === undefined) return 0;
 
-    const duration = performance.now() - startTime;
+    const duration = this.getTime() - startTime;
     this.startTimes.delete(operationName);
 
     const metric = this.metrics.get(operationName) || {
@@ -55,7 +60,7 @@ export class PerformanceMonitor {
   }
 
   getMetrics(operationName?: string) {
-    if (operationName) {
+    if (operationName !== undefined) {
       const metric = this.metrics.get(operationName);
       if (!metric) return null;
 
