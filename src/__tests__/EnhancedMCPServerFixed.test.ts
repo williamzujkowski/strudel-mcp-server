@@ -10,12 +10,14 @@ import { StrudelController } from '../StrudelController';
 import { PatternStore } from '../PatternStore';
 import { MusicTheory } from '../services/MusicTheory';
 import { PatternGenerator } from '../services/PatternGenerator';
+import { GeminiService } from '../services/GeminiService';
 
 // Mock all dependencies
 jest.mock('../StrudelController');
 jest.mock('../PatternStore');
 jest.mock('../services/MusicTheory');
 jest.mock('../services/PatternGenerator');
+jest.mock('../services/GeminiService');
 jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('{"headless": true}'),
   existsSync: jest.fn().mockReturnValue(true)
@@ -27,6 +29,7 @@ describe('EnhancedMCPServerFixed', () => {
   let mockStore: jest.Mocked<PatternStore>;
   let mockTheory: jest.Mocked<MusicTheory>;
   let mockGenerator: jest.Mocked<PatternGenerator>;
+  let mockGeminiService: jest.Mocked<GeminiService>;
 
   beforeEach(() => {
     // Setup mocks
@@ -132,11 +135,31 @@ describe('EnhancedMCPServerFixed', () => {
       generateVariation: jest.fn().mockReturnValue('s("bd*4 cp*2").fast(2)')
     } as any;
 
+    mockGeminiService = {
+      isAvailable: jest.fn().mockReturnValue(false),
+      getCreativeFeedback: jest.fn().mockResolvedValue({
+        complexity: 'moderate',
+        estimatedStyle: 'techno',
+        strengths: ['Good rhythm', 'Interesting sounds'],
+        suggestions: ['Add reverb', 'Try variation']
+      }),
+      analyzeAudio: jest.fn().mockResolvedValue({
+        mood: 'energetic',
+        style: 'techno',
+        energy: 'high',
+        suggestions: ['Great energy'],
+        confidence: 0.85
+      }),
+      suggestVariations: jest.fn().mockResolvedValue([]),
+      clearCache: jest.fn()
+    } as any;
+
     // Mock constructors
     (StrudelController as jest.Mock).mockReturnValue(mockController);
     (PatternStore as jest.Mock).mockReturnValue(mockStore);
     (MusicTheory as jest.Mock).mockReturnValue(mockTheory);
     (PatternGenerator as jest.Mock).mockReturnValue(mockGenerator);
+    (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
     server = new EnhancedMCPServerFixed();
   });
@@ -1285,6 +1308,62 @@ describe('EnhancedMCPServerFixed', () => {
 
         expect(result.success).toBe(true);
         expect(result.metadata.bpm).toBe(174); // DnB default
+      });
+
+      test('compose with get_feedback should include AI feedback when available', async () => {
+        mockGeminiService.isAvailable.mockReturnValue(true);
+
+        const result = await (server as any).executeTool('compose', {
+          style: 'techno',
+          get_feedback: true
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.feedback).toBeDefined();
+        expect(result.feedback.complexity).toBe('moderate');
+        expect(result.feedback.estimatedStyle).toBe('techno');
+        expect(result.message).toContain('AI feedback');
+        expect(mockGeminiService.getCreativeFeedback).toHaveBeenCalled();
+      });
+
+      test('compose with get_feedback should note when Gemini unavailable', async () => {
+        mockGeminiService.isAvailable.mockReturnValue(false);
+
+        const result = await (server as any).executeTool('compose', {
+          style: 'house',
+          get_feedback: true
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.feedback).toBeUndefined();
+        expect(result.message).toContain('GEMINI_API_KEY');
+        expect(mockGeminiService.getCreativeFeedback).not.toHaveBeenCalled();
+      });
+
+      test('compose with get_feedback should handle feedback errors gracefully', async () => {
+        mockGeminiService.isAvailable.mockReturnValue(true);
+        mockGeminiService.getCreativeFeedback.mockRejectedValue(new Error('API error'));
+
+        const result = await (server as any).executeTool('compose', {
+          style: 'ambient',
+          get_feedback: true
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.feedback).toBeUndefined();
+        expect(result.message).toContain('AI feedback unavailable');
+      });
+
+      test('compose without get_feedback should not call Gemini', async () => {
+        mockGeminiService.isAvailable.mockReturnValue(true);
+
+        const result = await (server as any).executeTool('compose', {
+          style: 'jazz'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.feedback).toBeUndefined();
+        expect(mockGeminiService.getCreativeFeedback).not.toHaveBeenCalled();
       });
     });
 

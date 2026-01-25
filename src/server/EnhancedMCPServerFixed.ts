@@ -552,7 +552,7 @@ export class EnhancedMCPServerFixed {
         inputSchema: { type: 'object', properties: {} }
       },
 
-      // UX Tools - High-level Compose (#42)
+      // UX Tools - High-level Compose (#42, #73)
       {
         name: 'compose',
         description: 'Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed.',
@@ -562,7 +562,8 @@ export class EnhancedMCPServerFixed {
             style: { type: 'string', description: 'Genre: techno, house, dnb, ambient, trap, jungle, jazz, experimental' },
             tempo: { type: 'number', description: 'BPM (default: genre-appropriate)' },
             key: { type: 'string', description: 'Musical key (default: C)' },
-            auto_play: { type: 'boolean', description: 'Start playback immediately (default: true)' }
+            auto_play: { type: 'boolean', description: 'Start playback immediately (default: true)' },
+            get_feedback: { type: 'boolean', description: 'Get AI feedback on the generated pattern (default: false)' }
           },
           required: ['style']
         }
@@ -1259,7 +1260,7 @@ export class EnhancedMCPServerFixed {
         }
         return result.trim();
 
-      // UX Tools - High-level Compose (#42)
+      // UX Tools - High-level Compose (#42, #73)
       case 'compose':
         InputValidator.validateStringLength(args.style, 'style', 100, false);
         if (args.key) {
@@ -1291,7 +1292,15 @@ export class EnhancedMCPServerFixed {
           await this.controller.play();
         }
 
-        return {
+        // Build response
+        const composeResponse: {
+          success: boolean;
+          pattern: string;
+          metadata: { style: string; bpm: number; key: string };
+          status: string;
+          message: string;
+          feedback?: CreativeFeedback;
+        } = {
           success: true,
           pattern: composedPattern.substring(0, 200) + (composedPattern.length > 200 ? '...' : ''),
           metadata: {
@@ -1302,6 +1311,25 @@ export class EnhancedMCPServerFixed {
           status: shouldPlay ? 'playing' : 'ready',
           message: `Created ${args.style} pattern in ${args.key || 'C'}${shouldPlay ? ' - now playing' : ''}`
         };
+
+        // Get AI feedback if requested (#73)
+        if (args.get_feedback) {
+          if (this.geminiService.isAvailable()) {
+            try {
+              const feedback = await this.geminiService.getCreativeFeedback(composedPattern);
+              composeResponse.feedback = feedback;
+              composeResponse.message += ` (AI feedback: ${feedback.complexity} complexity, estimated ${feedback.estimatedStyle})`;
+            } catch (error: any) {
+              this.logger.warn('Failed to get AI feedback for compose', error);
+              // Don't fail the whole operation, just note the feedback failure
+              composeResponse.message += ' (AI feedback unavailable)';
+            }
+          } else {
+            composeResponse.message += ' (AI feedback requires GEMINI_API_KEY)';
+          }
+        }
+
+        return composeResponse;
 
       // AI Feedback Tools (#67)
       case 'get_pattern_feedback':
