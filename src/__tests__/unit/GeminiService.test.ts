@@ -1,4 +1,6 @@
 import { GeminiService, AudioFeedback, CreativeFeedback, PatternSuggestion } from '../../services/GeminiService.js';
+import * as path from 'path';
+import * as os from 'os';
 
 // Mock the @google/generative-ai module
 jest.mock('@google/generative-ai', () => ({
@@ -14,6 +16,11 @@ jest.mock('google-auth-library', () => ({
   GoogleAuth: jest.fn().mockImplementation(() => ({
     getClient: jest.fn()
   }))
+}));
+
+// Mock fs/promises
+jest.mock('fs/promises', () => ({
+  readFile: jest.fn()
 }));
 
 describe('GeminiService', () => {
@@ -155,6 +162,192 @@ describe('GeminiService', () => {
     });
   });
 
+  describe('Gemini CLI credential detection', () => {
+    let mockReadFile: jest.Mock;
+
+    beforeEach(() => {
+      const fs = require('fs/promises');
+      mockReadFile = fs.readFile;
+      mockReadFile.mockReset();
+
+      // Disable ADC so we can test CLI credentials in isolation
+      const { GoogleAuth } = require('google-auth-library');
+      GoogleAuth.mockImplementation(() => ({
+        getClient: jest.fn().mockRejectedValue(new Error('No ADC'))
+      }));
+    });
+
+    it('should return correct config path for Linux', () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+
+      const service = new GeminiService();
+      const configPath = service.getGeminiCliConfigPath();
+
+      expect(configPath).toBe(path.join(os.homedir(), '.config', 'gemini', 'settings.json'));
+
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+
+    it('should return correct config path for macOS', () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      const service = new GeminiService();
+      const configPath = service.getGeminiCliConfigPath();
+
+      expect(configPath).toBe(path.join(os.homedir(), 'Library', 'Application Support', 'gemini', 'settings.json'));
+
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+
+    it('should return correct config path for Windows', () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      const originalAppData = process.env.APPDATA;
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      process.env.APPDATA = 'C:\\Users\\Test\\AppData\\Roaming';
+
+      const service = new GeminiService();
+      const configPath = service.getGeminiCliConfigPath();
+
+      expect(configPath).toBe(path.join('C:\\Users\\Test\\AppData\\Roaming', 'gemini', 'settings.json'));
+
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      }
+      if (originalAppData !== undefined) {
+        process.env.APPDATA = originalAppData;
+      } else {
+        delete process.env.APPDATA;
+      }
+    });
+
+    it('should load API key from Gemini CLI config using apiKey field', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ apiKey: 'cli-api-key-123' }));
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(true);
+    });
+
+    it('should load API key from Gemini CLI config using api_key field', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ api_key: 'cli-api-key-456' }));
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "simple"}' }
+      });
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(true);
+    });
+
+    it('should load API key from Gemini CLI config using geminiApiKey field', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ geminiApiKey: 'cli-api-key-789' }));
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when config file does not exist', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      mockReadFile.mockRejectedValue(error);
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when config file is not valid JSON', async () => {
+      mockReadFile.mockResolvedValue('not valid json {{{');
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when config file has no API key', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ someOtherSetting: 'value' }));
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when API key is empty string', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ apiKey: '' }));
+
+      const noKeyService = new GeminiService();
+      const result = await noKeyService.isAvailableAsync();
+
+      expect(result).toBe(false);
+    });
+
+    it('should cache CLI credentials check result', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ apiKey: 'cached-key' }));
+
+      const noKeyService = new GeminiService();
+      await noKeyService.loadGeminiCliCredentials();
+      await noKeyService.loadGeminiCliCredentials();
+      await noKeyService.loadGeminiCliCredentials();
+
+      // readFile should only be called once due to caching
+      expect(mockReadFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should prioritize explicit API key over CLI config', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ apiKey: 'cli-key' }));
+
+      const serviceWithKey = new GeminiService({ apiKey: 'explicit-key' });
+      const result = await serviceWithKey.isAvailableAsync();
+
+      expect(result).toBe(true);
+      // Should not even try to read CLI config
+      expect(mockReadFile).not.toHaveBeenCalled();
+    });
+
+    it('should use CLI credentials for API calls when no explicit key', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ apiKey: 'cli-api-key' }));
+
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '{"complexity": "moderate", "estimatedStyle": "techno"}' }
+      });
+
+      const noKeyService = new GeminiService();
+      const feedback = await noKeyService.getCreativeFeedback('s("bd sd")');
+
+      expect(feedback.complexity).toBe('moderate');
+      expect(mockGenerateContent).toHaveBeenCalled();
+    });
+
+    it('should include CLI option in error message when no auth available', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      mockReadFile.mockRejectedValue(error);
+
+      const noKeyService = new GeminiService();
+
+      await expect(noKeyService.getCreativeFeedback('s("bd")'))
+        .rejects.toThrow('gemini auth login');
+    });
+  });
+
   describe('analyzeAudio', () => {
     const mockAudioBlob = new Blob(['test-audio-data'], { type: 'audio/webm' });
 
@@ -180,7 +373,7 @@ describe('GeminiService', () => {
 
       const noKeyService = new GeminiService();
       await expect(noKeyService.analyzeAudio(mockAudioBlob))
-        .rejects.toThrow('Gemini API key not configured and ADC not available');
+        .rejects.toThrow('Gemini API key not configured');
     });
 
     it('should analyze audio and return feedback', async () => {
@@ -258,7 +451,7 @@ describe('GeminiService', () => {
 
       const noKeyService = new GeminiService();
       await expect(noKeyService.suggestVariations(testPattern))
-        .rejects.toThrow('Gemini API key not configured and ADC not available');
+        .rejects.toThrow('Gemini API key not configured');
     });
 
     it('should return pattern suggestions', async () => {
@@ -311,7 +504,7 @@ describe('GeminiService', () => {
 
       const noKeyService = new GeminiService();
       await expect(noKeyService.getCreativeFeedback(testPattern))
-        .rejects.toThrow('Gemini API key not configured and ADC not available');
+        .rejects.toThrow('Gemini API key not configured');
     });
 
     it('should return creative feedback', async () => {

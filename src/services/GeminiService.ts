@@ -1,5 +1,8 @@
 import { Logger } from '../utils/Logger.js';
 import { GoogleAuth } from 'google-auth-library';
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 
 /**
  * Audio feedback from Gemini analysis
@@ -82,6 +85,8 @@ export class GeminiService {
   private maxPatternLength: number;
   private adcAvailable: boolean | null = null; // null = not checked yet
   private adcCheckPromise: Promise<boolean> | null = null;
+  private cliCredentialsChecked: boolean = false;
+  private cliCredentialsPromise: Promise<string | undefined> | null = null;
 
   // Rate limiting with better state tracking
   private rateLimit: RateLimitState = {
@@ -123,11 +128,18 @@ export class GeminiService {
 
   /**
    * Async check for Gemini service availability.
-   * Checks API key first, then falls back to ADC detection.
+   * Checks in order: API key, env var, Gemini CLI config, ADC.
    * @returns Promise<boolean> indicating if service can make API calls
    */
   async isAvailableAsync(): Promise<boolean> {
+    // 1. Explicit API key or env var already set
     if (this.apiKey) return true;
+
+    // 2. Check Gemini CLI config file
+    const cliKey = await this.loadGeminiCliCredentials();
+    if (cliKey) return true;
+
+    // 3. Fall back to ADC
     return await this.checkADC();
   }
 
@@ -173,20 +185,106 @@ export class GeminiService {
   }
 
   /**
-   * Get authentication error message
+   * Get the config path for the Gemini CLI based on platform
+   * @returns The path to the Gemini CLI settings file
    */
-  private getAuthErrorMessage(): string {
-    return 'Gemini API key not configured and ADC not available. ' +
-      'Set GEMINI_API_KEY environment variable or run "gcloud auth application-default login".';
+  getGeminiCliConfigPath(): string {
+    const homeDir = os.homedir();
+    const platform = process.platform;
+
+    if (platform === 'win32') {
+      return path.join(process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming'), 'gemini', 'settings.json');
+    } else if (platform === 'darwin') {
+      return path.join(homeDir, 'Library', 'Application Support', 'gemini', 'settings.json');
+    } else {
+      // Linux and other Unix-like systems
+      return path.join(homeDir, '.config', 'gemini', 'settings.json');
+    }
   }
 
   /**
-   * Ensure authentication is available (API key or ADC)
-   * @throws {Error} When neither API key nor ADC is available
+   * Load credentials from the Gemini CLI config file
+   * Checks platform-specific locations for settings.json
+   * @returns API key if found, undefined otherwise
+   */
+  async loadGeminiCliCredentials(): Promise<string | undefined> {
+    // Return cached result if already checked
+    if (this.cliCredentialsChecked) {
+      return this.apiKey && !process.env.GEMINI_API_KEY ? this.apiKey : undefined;
+    }
+
+    // If check is in progress, wait for it
+    if (this.cliCredentialsPromise) {
+      return this.cliCredentialsPromise;
+    }
+
+    // Perform the check
+    this.cliCredentialsPromise = this.performCliCredentialsCheck();
+    return this.cliCredentialsPromise;
+  }
+
+  /**
+   * Perform the actual CLI credentials check
+   */
+  private async performCliCredentialsCheck(): Promise<string | undefined> {
+    try {
+      const configPath = this.getGeminiCliConfigPath();
+      const content = await fs.readFile(configPath, 'utf-8');
+      const settings = JSON.parse(content);
+
+      // Check for various possible key names
+      const apiKey = settings.apiKey || settings.api_key || settings.geminiApiKey || settings.GEMINI_API_KEY;
+
+      if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
+        this.logger.debug('Gemini CLI credentials loaded from config file');
+        // Set the API key if not already set
+        if (!this.apiKey) {
+          this.apiKey = apiKey;
+        }
+        return apiKey;
+      }
+
+      this.logger.debug('No API key found in Gemini CLI config');
+      return undefined;
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        this.logger.debug('Gemini CLI config file not found');
+      } else if (error instanceof SyntaxError) {
+        this.logger.debug('Gemini CLI config file is not valid JSON');
+      } else {
+        this.logger.debug('Failed to load Gemini CLI credentials', error);
+      }
+      return undefined;
+    } finally {
+      this.cliCredentialsChecked = true;
+      this.cliCredentialsPromise = null;
+    }
+  }
+
+  /**
+   * Get authentication error message
+   */
+  private getAuthErrorMessage(): string {
+    return 'Gemini API key not configured. Options:\n' +
+      '1. Set GEMINI_API_KEY environment variable\n' +
+      '2. Install Gemini CLI and run "gemini auth login"\n' +
+      '3. Run "gcloud auth application-default login" for ADC';
+  }
+
+  /**
+   * Ensure authentication is available (API key, Gemini CLI, or ADC)
+   * Priority: 1. Explicit API key, 2. Env var, 3. Gemini CLI config, 4. ADC
+   * @throws {Error} When no authentication method is available
    */
   private async ensureAuthentication(): Promise<void> {
+    // 1. Already have API key (explicit or from env var)
     if (this.apiKey) return;
 
+    // 2. Check Gemini CLI config file
+    const cliKey = await this.loadGeminiCliCredentials();
+    if (cliKey) return;
+
+    // 3. Fall back to ADC
     const adcAvailable = await this.checkADC();
     if (!adcAvailable) {
       throw new Error(this.getAuthErrorMessage());
