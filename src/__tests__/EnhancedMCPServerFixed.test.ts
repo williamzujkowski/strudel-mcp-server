@@ -12,6 +12,7 @@ import { MusicTheory } from '../services/MusicTheory';
 import { PatternGenerator } from '../services/PatternGenerator';
 import { GeminiService } from '../services/GeminiService';
 import { AudioCaptureService } from '../services/AudioCaptureService';
+import { SessionManager } from '../services/SessionManager';
 
 // Mock all dependencies
 jest.mock('../StrudelController');
@@ -20,6 +21,7 @@ jest.mock('../services/MusicTheory');
 jest.mock('../services/PatternGenerator');
 jest.mock('../services/GeminiService');
 jest.mock('../services/AudioCaptureService');
+jest.mock('../services/SessionManager');
 jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('{"headless": true}'),
   existsSync: jest.fn().mockReturnValue(true)
@@ -32,6 +34,7 @@ describe('EnhancedMCPServerFixed', () => {
   let mockTheory: jest.Mocked<MusicTheory>;
   let mockGenerator: jest.Mocked<PatternGenerator>;
   let mockGeminiService: jest.Mocked<GeminiService>;
+  let mockSessionManager: jest.Mocked<SessionManager>;
 
   beforeEach(() => {
     // Setup mocks
@@ -156,12 +159,28 @@ describe('EnhancedMCPServerFixed', () => {
       clearCache: jest.fn()
     } as any;
 
+    mockSessionManager = {
+      createSession: jest.fn().mockResolvedValue(mockController),
+      destroySession: jest.fn().mockResolvedValue(undefined),
+      getSession: jest.fn().mockReturnValue(undefined),
+      getDefaultSession: jest.fn().mockReturnValue(undefined),
+      setDefaultSession: jest.fn(),
+      listSessions: jest.fn().mockReturnValue([]),
+      getSessionsInfo: jest.fn().mockReturnValue([]),
+      getDefaultSessionId: jest.fn().mockReturnValue('default'),
+      getSessionCount: jest.fn().mockReturnValue(0),
+      getMaxSessions: jest.fn().mockReturnValue(5),
+      destroyAll: jest.fn().mockResolvedValue(undefined),
+      isBrowserRunning: jest.fn().mockReturnValue(false)
+    } as any;
+
     // Mock constructors
     (StrudelController as jest.Mock).mockReturnValue(mockController);
     (PatternStore as jest.Mock).mockReturnValue(mockStore);
     (MusicTheory as jest.Mock).mockReturnValue(mockTheory);
     (PatternGenerator as jest.Mock).mockReturnValue(mockGenerator);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
+    (SessionManager as jest.Mock).mockReturnValue(mockSessionManager);
 
     server = new EnhancedMCPServerFixed();
   });
@@ -1673,6 +1692,93 @@ describe('EnhancedMCPServerFixed', () => {
 
         expect(result.success).toBe(false);
         expect(result.message).toContain('Failed to capture audio sample');
+      });
+    });
+
+    describe('Multi-Session Management (#75)', () => {
+      test('create_session should create a new session', async () => {
+        const result = await (server as any).executeTool('create_session', { session_id: 'test-session' });
+
+        expect(mockSessionManager.createSession).toHaveBeenCalledWith('test-session');
+        expect(result.success).toBe(true);
+        expect(result.session_id).toBe('test-session');
+      });
+
+      test('create_session should handle errors', async () => {
+        mockSessionManager.createSession.mockRejectedValue(new Error('Session already exists'));
+
+        const result = await (server as any).executeTool('create_session', { session_id: 'duplicate' });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Session already exists');
+      });
+
+      test('destroy_session should destroy a session', async () => {
+        const result = await (server as any).executeTool('destroy_session', { session_id: 'test-session' });
+
+        expect(mockSessionManager.destroySession).toHaveBeenCalledWith('test-session');
+        expect(result.success).toBe(true);
+      });
+
+      test('destroy_session should handle errors', async () => {
+        mockSessionManager.destroySession.mockRejectedValue(new Error('Session not found'));
+
+        const result = await (server as any).executeTool('destroy_session', { session_id: 'nonexistent' });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Session not found');
+      });
+
+      test('list_sessions should return session info', async () => {
+        mockSessionManager.getSessionsInfo.mockReturnValue([
+          {
+            id: 'session1',
+            created: new Date('2024-01-01'),
+            lastActivity: new Date('2024-01-01'),
+            isPlaying: false
+          }
+        ]);
+
+        const result = await (server as any).executeTool('list_sessions', {});
+
+        expect(result.count).toBe(1);
+        expect(result.sessions).toHaveLength(1);
+        expect(result.sessions[0].id).toBe('session1');
+      });
+
+      test('list_sessions should indicate default session', async () => {
+        mockSessionManager.getSessionsInfo.mockReturnValue([
+          {
+            id: 'default',
+            created: new Date(),
+            lastActivity: new Date(),
+            isPlaying: true
+          }
+        ]);
+
+        const result = await (server as any).executeTool('list_sessions', {});
+
+        expect(result.default_session).toBe('default');
+        expect(result.sessions[0].is_default).toBe(true);
+      });
+
+      test('switch_session should change default session', async () => {
+        const result = await (server as any).executeTool('switch_session', { session_id: 'new-default' });
+
+        expect(mockSessionManager.setDefaultSession).toHaveBeenCalledWith('new-default');
+        expect(result.success).toBe(true);
+        expect(result.default_session).toBe('new-default');
+      });
+
+      test('switch_session should handle errors', async () => {
+        mockSessionManager.setDefaultSession.mockImplementation(() => {
+          throw new Error('Session not found');
+        });
+
+        const result = await (server as any).executeTool('switch_session', { session_id: 'nonexistent' });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Session not found');
       });
     });
   });

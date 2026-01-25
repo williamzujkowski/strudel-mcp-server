@@ -11,6 +11,8 @@ import { MusicTheory } from '../services/MusicTheory.js';
 import { PatternGenerator } from '../services/PatternGenerator.js';
 import { GeminiService, CreativeFeedback, AudioFeedback } from '../services/GeminiService.js';
 import { AudioCaptureService } from '../services/AudioCaptureService.js';
+import { MIDIExportService } from '../services/MIDIExportService.js';
+import { SessionManager } from '../services/SessionManager.js';
 import { readFileSync, existsSync } from 'fs';
 import { Logger } from '../utils/Logger.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
@@ -37,6 +39,8 @@ export class EnhancedMCPServerFixed {
   private generator: PatternGenerator;
   private geminiService: GeminiService;
   private audioCaptureService: AudioCaptureService | null = null;
+  private midiExportService: MIDIExportService;
+  private sessionManager: SessionManager;
   private logger: Logger;
   private perfMonitor: PerformanceMonitor;
   private sessionHistory: string[] = [];
@@ -68,6 +72,8 @@ export class EnhancedMCPServerFixed {
     this.theory = new MusicTheory();
     this.generator = new PatternGenerator();
     this.geminiService = new GeminiService();
+    this.midiExportService = new MIDIExportService();
+    this.sessionManager = new SessionManager(config.headless);
     this.logger = new Logger();
     this.perfMonitor = new PerformanceMonitor();
     this.setupHandlers();
@@ -610,6 +616,61 @@ export class EnhancedMCPServerFixed {
             duration: { type: 'number', description: 'Duration in milliseconds (default: 5000)' }
           }
         }
+      },
+
+      // MIDI Export Tools (#74)
+      {
+        name: 'export_midi',
+        description: 'Export current pattern to MIDI file. Parses note(), n(), and chord() functions.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filename: { type: 'string', description: 'Output filename (optional, default: pattern.mid)' },
+            duration: { type: 'number', description: 'Export duration in bars (default: 4)' },
+            bpm: { type: 'number', description: 'Tempo in BPM (default: 120)' },
+            format: { type: 'string', enum: ['file', 'base64'], description: 'Output format: file or base64 (default: base64)' }
+          }
+        }
+      },
+
+      // Multi-Session Management Tools (#75)
+      {
+        name: 'create_session',
+        description: 'Create a new isolated Strudel browser session. Sessions share one browser but have isolated contexts.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string', description: 'Unique identifier for the session' }
+          },
+          required: ['session_id']
+        }
+      },
+      {
+        name: 'destroy_session',
+        description: 'Close and destroy a Strudel session, releasing its resources.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string', description: 'Session identifier to destroy' }
+          },
+          required: ['session_id']
+        }
+      },
+      {
+        name: 'list_sessions',
+        description: 'List all active Strudel sessions with their metadata.',
+        inputSchema: { type: 'object', properties: {} }
+      },
+      {
+        name: 'switch_session',
+        description: 'Change the default session used by other tools.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            session_id: { type: 'string', description: 'Session identifier to set as default' }
+          },
+          required: ['session_id']
+        }
       }
     ];
   }
@@ -688,8 +749,48 @@ export class EnhancedMCPServerFixed {
       this.generatedPatterns.set(id, pattern);
       return `Pattern generated (initialize Strudel to use it): ${pattern.substring(0, 50)}...`;
     }
-    
+
     return await this.controller.writePattern(pattern);
+  }
+
+  /**
+   * Gets a StrudelController for the specified session, or the default session.
+   * Falls back to the legacy single controller if no sessions exist.
+   * @param sessionId - Optional session ID. Uses default session if not specified.
+   * @returns StrudelController for the session
+   * @throws {Error} If session doesn't exist
+   */
+  private getControllerForSession(sessionId?: string): StrudelController {
+    // If session_id is specified, use the SessionManager
+    if (sessionId) {
+      const controller = this.sessionManager.getSession(sessionId);
+      if (!controller) {
+        throw new Error(`Session '${sessionId}' not found. Create it first with create_session.`);
+      }
+      return controller;
+    }
+
+    // If sessions exist and there's a default, use it
+    const defaultController = this.sessionManager.getDefaultSession();
+    if (defaultController) {
+      return defaultController;
+    }
+
+    // Fall back to legacy single controller for backwards compatibility
+    return this.controller;
+  }
+
+  /**
+   * Checks if a session exists (or default/legacy controller is initialized)
+   * @param sessionId - Optional session ID
+   * @returns True if controller is available
+   */
+  private hasSession(sessionId?: string): boolean {
+    if (sessionId) {
+      return this.sessionManager.getSession(sessionId) !== undefined;
+    }
+    // Check if we have a default session or the legacy controller is initialized
+    return this.sessionManager.getDefaultSession() !== undefined || this.isInitialized;
   }
 
   private async executeTool(name: string, args: any): Promise<any> {
@@ -1375,6 +1476,77 @@ export class EnhancedMCPServerFixed {
       case 'capture_audio_sample':
         return await this.captureAudioSampleTool(args?.duration);
 
+      // MIDI Export Tools (#74)
+      case 'export_midi':
+        return await this.exportMidi(args?.filename, args?.duration, args?.bpm, args?.format);
+
+      // Multi-Session Management Tools (#75)
+      case 'create_session':
+        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
+        try {
+          await this.sessionManager.createSession(args.session_id);
+          return {
+            success: true,
+            session_id: args.session_id,
+            message: `Session '${args.session_id}' created successfully`,
+            total_sessions: this.sessionManager.getSessionCount(),
+            max_sessions: this.sessionManager.getMaxSessions()
+          };
+        } catch (error: any) {
+          return {
+            success: false,
+            error: error.message
+          };
+        }
+
+      case 'destroy_session':
+        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
+        try {
+          await this.sessionManager.destroySession(args.session_id);
+          return {
+            success: true,
+            session_id: args.session_id,
+            message: `Session '${args.session_id}' destroyed`,
+            remaining_sessions: this.sessionManager.getSessionCount()
+          };
+        } catch (error: any) {
+          return {
+            success: false,
+            error: error.message
+          };
+        }
+
+      case 'list_sessions':
+        const sessionsInfo = this.sessionManager.getSessionsInfo();
+        return {
+          count: sessionsInfo.length,
+          max_sessions: this.sessionManager.getMaxSessions(),
+          default_session: this.sessionManager.getDefaultSessionId(),
+          sessions: sessionsInfo.map(s => ({
+            id: s.id,
+            created: s.created.toISOString(),
+            last_activity: s.lastActivity.toISOString(),
+            is_playing: s.isPlaying,
+            is_default: s.id === this.sessionManager.getDefaultSessionId()
+          }))
+        };
+
+      case 'switch_session':
+        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
+        try {
+          this.sessionManager.setDefaultSession(args.session_id);
+          return {
+            success: true,
+            default_session: args.session_id,
+            message: `Default session switched to '${args.session_id}'`
+          };
+        } catch (error: any) {
+          return {
+            success: false,
+            error: error.message
+          };
+        }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1871,14 +2043,94 @@ export class EnhancedMCPServerFixed {
     }
   }
 
+  /**
+   * Exports current pattern to MIDI format
+   * @param filename - Output filename (optional)
+   * @param bars - Duration in bars (default: 4)
+   * @param bpm - Tempo in BPM (default: 120)
+   * @param format - Output format: 'file' or 'base64' (default: 'base64')
+   * @returns Export result with MIDI data or file path
+   */
+  private async exportMidi(
+    filename?: string,
+    bars?: number,
+    bpm?: number,
+    format?: 'file' | 'base64'
+  ): Promise<{
+    success: boolean;
+    message: string;
+    output?: string;
+    noteCount?: number;
+    bars?: number;
+    bpm?: number;
+    error?: string;
+  }> {
+    // Validate inputs
+    if (bpm !== undefined) {
+      InputValidator.validateBPM(bpm);
+    }
+    if (bars !== undefined && (bars < 1 || bars > 128)) {
+      return {
+        success: false,
+        message: 'Bars must be between 1 and 128'
+      };
+    }
+
+    // Get current pattern
+    const pattern = await this.getCurrentPatternSafe();
+    if (!pattern || pattern.trim().length === 0) {
+      return {
+        success: false,
+        message: 'No pattern to export. Write a pattern first.'
+      };
+    }
+
+    const exportOptions = {
+      bpm: bpm || 120,
+      bars: bars || 4
+    };
+
+    // Export based on format
+    const outputFormat = format || 'base64';
+
+    if (outputFormat === 'file') {
+      const result = this.midiExportService.exportToFile(pattern, filename, exportOptions);
+      return {
+        success: result.success,
+        message: result.success
+          ? `Exported ${result.noteCount} notes to ${result.output}`
+          : result.error || 'Export failed',
+        output: result.output,
+        noteCount: result.noteCount,
+        bars: result.bars,
+        bpm: result.bpm,
+        error: result.error
+      };
+    } else {
+      const result = this.midiExportService.exportToBase64(pattern, exportOptions);
+      return {
+        success: result.success,
+        message: result.success
+          ? `Exported ${result.noteCount} notes as base64 MIDI data`
+          : result.error || 'Export failed',
+        output: result.output,
+        noteCount: result.noteCount,
+        bars: result.bars,
+        bpm: result.bpm,
+        error: result.error
+      };
+    }
+  }
+
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     this.logger.info('Enhanced Strudel MCP server v2.0.1 running (fixed)');
-    
+
     process.on('SIGINT', async () => {
       this.logger.info('Shutting down...');
       await this.controller.cleanup();
+      await this.sessionManager.destroyAll();
       process.exit(0);
     });
   }
