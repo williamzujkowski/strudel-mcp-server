@@ -267,7 +267,7 @@ export class PatternGenerator {
       pad: '.attack(2).release(4).room(0.8)'
     };
     
-    return `note(${progression}).s("sawtooth")${voicings[voicing] || voicings.triad}`;
+    return `note("<${progression}>").s("sawtooth")${voicings[voicing] || voicings.triad}`;
   }
 
   /**
