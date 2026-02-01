@@ -66,26 +66,26 @@ export class MusicTheory {
     }
     
     const chordMap: Record<string, string> = {
-      'I': `"${key}"`,
-      'I7': `"${key}7"`,
-      'i': `"${key.toLowerCase()}m"`,
-      'ii': `"${this.getNote(key, 2)}m"`,
-      'IIM7': `"${this.getNote(key, 2)}m7"`,
-      'iii': `"${this.getNote(key, 4)}m"`,
-      'III': `"${this.getNote(key, 4)}"`,
-      'IV': `"${this.getNote(key, 5)}"`,
-      'IV7': `"${this.getNote(key, 5)}7"`,
-      'V': `"${this.getNote(key, 7)}"`,
-      'V7': `"${this.getNote(key, 7)}7"`,
-      'vi': `"${this.getNote(key, 9)}m"`,
-      'VI': `"${this.getNote(key, 9)}"`,
-      'VII': `"${this.getNote(key, 11)}"`,
-      'bVII': `"${this.getNote(key, 10)}"`,
-      'IM7': `"${key}maj7"`
+      'I': key,
+      'I7': `${key}7`,
+      'i': `${key.toLowerCase()}m`,
+      'ii': `${this.getNote(key, 2)}m`,
+      'IIM7': `${this.getNote(key, 2)}m7`,
+      'iii': `${this.getNote(key, 4)}m`,
+      'III': this.getNote(key, 4),
+      'IV': this.getNote(key, 5),
+      'IV7': `${this.getNote(key, 5)}7`,
+      'V': this.getNote(key, 7),
+      'V7': `${this.getNote(key, 7)}7`,
+      'vi': `${this.getNote(key, 9)}m`,
+      'VI': this.getNote(key, 9),
+      'VII': this.getNote(key, 11),
+      'bVII': this.getNote(key, 10),
+      'IM7': `${key}maj7`
     };
 
     return progression
-      .map(chord => chordMap[chord] || `"${key}"`)
+      .map(chord => chordMap[chord] || key)
       .join(' ');
   }
 

@@ -69,17 +69,17 @@ describe('MusicTheory', () => {
   describe('generateChordProgression', () => {
     test('should generate pop progression (I-V-vi-IV)', () => {
       const progression = theory.generateChordProgression('C', 'pop');
-      expect(progression).toBe('"C" "G" "Am" "F"');
+      expect(progression).toBe('C G Am F');
     });
 
     test('should generate jazz progression', () => {
       const progression = theory.generateChordProgression('C', 'jazz');
-      expect(progression).toBe('"Dm7" "G7" "Cmaj7"');
+      expect(progression).toBe('Dm7 G7 Cmaj7');
     });
 
     test('should generate blues progression', () => {
       const progression = theory.generateChordProgression('C', 'blues');
-      expect(progression).toContain('"C7"');
+      expect(progression).toContain('C7');
       expect(progression.split(' ')).toHaveLength(12); // 12-bar blues
     });
 
