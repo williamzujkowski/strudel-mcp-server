@@ -2,6 +2,22 @@
 
 All notable changes to the Strudel MCP Server will be documented in this file.
 
+## [2.4.1] - 2026-02-01
+
+### Fixed
+
+- **MCP Protocol**: Fixed stdout pollution from @strudel imports breaking JSON-RPC communication (#85)
+- **Chord Generation**: Fixed `generateChordProgression()` to produce valid Strudel syntax - `note("<C G Am F>")` instead of invalid `note("C" "G" "Am" "F")` (#85)
+- **Documentation**: Corrected tool count from 66 to 65, updated test statistics
+
+### Security
+
+- Bump hono 4.11.4 → 4.11.7 (CVE fixes) (#84)
+
+### Contributors
+
+- @linxule - MCP compatibility and chord syntax fixes
+
 ## [2.4.0] - 2026-01-25
 
 ### New Features

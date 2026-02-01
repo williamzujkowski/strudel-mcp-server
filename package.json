@@ -1,6 +1,6 @@
 {
   "name": "@williamzujkowski/strudel-mcp-server",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Advanced MCP server for AI-powered music generation with Strudel.cc",
   "type": "module",
   "main": "dist/index.js",

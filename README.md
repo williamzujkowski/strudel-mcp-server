@@ -10,12 +10,12 @@
 
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
-[![Tools](https://img.shields.io/badge/tools-66-green.svg)]()
+[![Tools](https://img.shields.io/badge/tools-65-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
 
-**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 78% with 1501 tests passing (1521 total, 20 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 78% with 1470 tests passing (1521 total, 51 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - [Installation](#-installation)
 - [Quick Reference](#-quick-reference)
 - [Quick Start](#-quick-start)
-- [Available Tools](#-available-tools-66)
+- [Available Tools](#-available-tools-65)
 - [Usage Examples](#-usage-examples)
 - [Architecture](#-architecture)
 - [Advanced Usage](#-advanced-usage)
@@ -36,7 +36,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 ## ✨ Features
 
 ### 🎹 Complete Music Control
-- **66 MCP Tools**: Comprehensive suite for music creation and manipulation
+- **65 MCP Tools**: Comprehensive suite for music creation and manipulation
 - **Real Browser Automation**: Direct control of Strudel.cc through Playwright
 - **Live Audio Analysis**: Real-time frequency analysis via Web Audio API
 - **Pattern Generation**: AI-powered creation across 8+ music genres
@@ -44,7 +44,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - **Session Management**: Save, load, undo/redo with pattern storage
 
 ### 🔧 Testing & Development Status
-- ✅ **Test Suite**: 1501 tests passing (1521 total, 20 skipped)
+- ✅ **Test Suite**: 1470 tests passing (1521 total, 51 skipped)
 - ✅ **Code Coverage**: 78% statement coverage (goal: 80%)
 - ✅ **Browser Integration**: Works with live Strudel.cc website
 - ✅ **Audio Analysis**: Real-time FFT analysis functional
@@ -148,7 +148,7 @@ Then ask Claude:
 - "Generate a jazz chord progression in F major"
 - "Create a drum & bass pattern at 174 BPM"
 
-## 🛠️ Available Tools (66)
+## 🛠️ Available Tools (65)
 
 ### Core Control (10 tools)
 | Tool | Description | Example |
@@ -458,7 +458,7 @@ npm run test:integration
 # Run browser tests
 node tests/strudel-integration.js
 
-# Test results: 435/444 tests passing (98.0%), including 19/19 browser integration tests
+# Test results: 1470/1521 tests passing (96.6%), 51 skipped (browser tests in CI)
 ```
 
 ## ⚙️ Configuration
@@ -531,7 +531,7 @@ The Strudel MCP Server is built with a modular architecture that separates conce
 #### 1. **EnhancedMCPServerFixed** (`src/server/EnhancedMCPServerFixed.ts`)
 
 Main MCP server implementation handling:
-- **66 Tool Definitions**: Complete API surface for music control
+- **65 Tool Definitions**: Complete API surface for music control
 - **Request Routing**: Directs tool calls to appropriate handlers
 - **State Management**: Tracks initialization, undo/redo stacks, pattern cache
 - **Error Handling**: Graceful degradation and informative error messages
@@ -947,7 +947,7 @@ npm run test:integration
 # - Pattern generation
 # - Audio analysis
 # - Pattern storage
-# - All 66 tools
+# - All 65 tools
 ```
 
 #### 3. Manual Testing
@@ -1428,7 +1428,7 @@ npm run build
 # Check if server responds
 echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js
 
-# Should return JSON with 66 tools
+# Should return JSON with 65 tools
 
 # Reinstall MCP server in Claude
 claude mcp remove strudel
