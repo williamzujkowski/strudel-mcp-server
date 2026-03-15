@@ -10,6 +10,7 @@
 
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
+[![Nerq Trust](https://nerq.ai/badge/strudel-mcp-server)](https://nerq.ai/kya/strudel-mcp-server)
 [![Tools](https://img.shields.io/badge/tools-65-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
