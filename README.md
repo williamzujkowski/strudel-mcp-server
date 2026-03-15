@@ -77,8 +77,8 @@ Each example includes pattern code, BPM, key, and description. See [`patterns/ex
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Node.js | 18.x or 20.x | LTS versions recommended |
-| npm | 9+ | Comes with Node.js |
+| Node.js | 22.x+ | LTS required |
+| npm | 10+ | Comes with Node.js |
 | Chromium | Latest | Auto-installed by Playwright |
 | Audio output | Any | Required for playback (speakers/headphones) |
 

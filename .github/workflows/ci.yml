@@ -49,7 +49,14 @@ jobs:
       
       - name: Check TypeScript types
         run: npx tsc --noEmit
-      
+
+      - name: Lint (non-blocking)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Verify tool documentation freshness
+        run: npx tsx scripts/generate-tool-docs.ts check
+
       - name: Verify required files exist
         run: |
           test -f dist/index.js || exit 1
