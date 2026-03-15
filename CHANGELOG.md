@@ -2,6 +2,33 @@
 
 All notable changes to the Strudel MCP Server will be documented in this file.
 
+## [Unreleased]
+
+> 66 tools registered
+> Since v2.4.1
+
+### New Features
+
+- add suggest_pattern_from_audio tool — AI-powered audio-to-pattern (#95)
+
+### Fixed
+
+- ESLint config, test file names, Node version docs, CI improvements
+
+### Refactored
+
+- rename server, strip emoji, make docs evergreen
+
+### Maintenance
+
+- cleanup vestigial content + auto-generate tool docs
+- **deps**: update all dependencies to latest LTS
+- **deps**: update lockfile to resolve 12 security vulnerabilities
+- add SECURITY.md and Nerq Trust badge
+- **deps**: Bump hono in the npm_and_yarn group across 1 directory (#90)
+- **deps**: Bump qs in the npm_and_yarn group across 1 directory (#89)
+- **deps**: Bump @modelcontextprotocol/sdk (#86)
+
 ## [2.4.1] - 2026-02-01
 
 ### Fixed

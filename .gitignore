@@ -56,7 +56,8 @@ claude_desktop_config_example.json
 repomix-output.xml
 project_plan.md
 
-# Local Claude config (user-specific)
+# Local config (user-specific)
+config.json
 .claude.json
 
 # Test output files (ephemeral - regenerate with npm test)

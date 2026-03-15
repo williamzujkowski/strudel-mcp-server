@@ -841,12 +841,13 @@ export class StrudelMCPServer {
             text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
           }],
         };
-      } catch (error: any) {
-        this.logger.error(`Tool execution failed: ${name}`, error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Tool execution failed: ${name}`, { error: message });
         return {
           content: [{
             type: 'text',
-            text: `Error: ${error.message}`
+            text: `Error: ${message}`
           }],
         };
       }
@@ -1283,11 +1284,12 @@ export class StrudelMCPServer {
             method: tempoAnalysis.method,
             message: `Detected ${tempoAnalysis.bpm} BPM with ${Math.round(tempoAnalysis.confidence * 100)}% confidence`
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
             bpm: 0,
             confidence: 0,
-            error: error.message || 'Tempo detection failed'
+            error: message || 'Tempo detection failed'
           };
         }
       
@@ -1323,12 +1325,13 @@ export class StrudelMCPServer {
           }
 
           return result;
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
             key: 'Unknown',
             scale: 'unknown',
             confidence: 0,
-            error: error.message || 'Key detection failed'
+            error: message || 'Key detection failed'
           };
         }
 
@@ -1396,9 +1399,10 @@ export class StrudelMCPServer {
               duration: e.end - e.start
             }))
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
-            error: error.message,
+            error: message,
             suggestion: 'Check pattern syntax with validate_pattern_local first'
           };
         }
@@ -1752,8 +1756,9 @@ export class StrudelMCPServer {
               const feedback = await this.geminiService.getCreativeFeedback(composedPattern);
               composeResponse.feedback = feedback;
               composeResponse.message += ` (AI feedback: ${feedback.complexity} complexity, estimated ${feedback.estimatedStyle})`;
-            } catch (error: any) {
-              this.logger.warn('Failed to get AI feedback for compose', error);
+            } catch (error: unknown) {
+              const message = error instanceof Error ? error.message : String(error);
+              this.logger.warn('Failed to get AI feedback for compose', { error: message });
               // Don't fail the whole operation, just note the feedback failure
               composeResponse.message += ' (AI feedback unavailable)';
             }
@@ -1797,10 +1802,11 @@ export class StrudelMCPServer {
             total_sessions: this.sessionManager.getSessionCount(),
             max_sessions: this.sessionManager.getMaxSessions()
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
             success: false,
-            error: error.message
+            error: message
           };
         }
 
@@ -1814,10 +1820,11 @@ export class StrudelMCPServer {
             message: `Session '${args.session_id}' destroyed`,
             remaining_sessions: this.sessionManager.getSessionCount()
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
             success: false,
-            error: error.message
+            error: message
           };
         }
 
@@ -1845,10 +1852,11 @@ export class StrudelMCPServer {
             default_session: args.session_id,
             message: `Default session switched to '${args.session_id}'`
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           return {
             success: false,
-            error: error.message
+            error: message
           };
         }
 
@@ -2162,18 +2170,19 @@ export class StrudelMCPServer {
     // Get pattern analysis
     try {
       result.pattern_analysis = await this.geminiService.getCreativeFeedback(pattern);
-    } catch (error: any) {
-      this.logger.error('Pattern feedback failed', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error('Pattern feedback failed', { error: message });
 
       // Handle rate limit errors gracefully - pass through the detailed error message
-      if (error.message?.includes('rate limit') || error.message?.includes('Rate limit')) {
+      if (message?.includes('rate limit') || message?.includes('Rate limit')) {
         return {
           gemini_available: true,
-          error: error.message // Pass through the detailed rate limit message with wait time
+          error: message // Pass through the detailed rate limit message with wait time
         };
       }
 
-      result.error = `Pattern analysis failed: ${error.message}`;
+      result.error = `Pattern analysis failed: ${message}`;
     }
 
     // Get audio analysis if requested
@@ -2190,12 +2199,13 @@ export class StrudelMCPServer {
         } else {
           this.logger.warn('Audio capture returned no data');
         }
-      } catch (error: any) {
-        this.logger.error('Audio analysis failed', error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error('Audio analysis failed', { error: message });
 
         // Don't fail the whole request if audio analysis fails
         if (!result.error) {
-          result.error = `Audio analysis failed: ${error.message}`;
+          result.error = `Audio analysis failed: ${message}`;
         }
       }
     } else if (includeAudio && !this.isInitialized) {
@@ -2287,9 +2297,10 @@ Example patterns:
         validation_errors: validation.valid ? [] : validation.errors,
         usage: 'Use write tool to load this pattern, then play to hear it.',
       };
-    } catch (error: any) {
-      this.logger.error('Audio-to-pattern suggestion failed', error);
-      return { error: `Pattern suggestion failed: ${error.message}` };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error('Audio-to-pattern suggestion failed', { error: message });
+      return { error: `Pattern suggestion failed: ${message}` };
     }
   }
 
@@ -2394,8 +2405,9 @@ Example patterns:
 
       return new Blob([bytes], { type: 'audio/webm' });
 
-    } catch (error: any) {
-      this.logger.error('Audio capture failed', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error('Audio capture failed', { error: message });
       return null;
     }
   }
@@ -2451,10 +2463,11 @@ Example patterns:
         message: 'Audio capture started. Use stop_audio_capture to get the recorded audio.',
         format: format || 'webm'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `Failed to start audio capture: ${error.message}`
+        message: `Failed to start audio capture: ${message}`
       };
     }
   }
@@ -2498,10 +2511,11 @@ Example patterns:
         duration: result.duration,
         format: result.format
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `Failed to stop audio capture: ${error.message}`
+        message: `Failed to stop audio capture: ${message}`
       };
     }
   }
@@ -2556,10 +2570,11 @@ Example patterns:
         duration: result.duration,
         format: result.format
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `Failed to capture audio sample: ${error.message}`
+        message: `Failed to capture audio sample: ${message}`
       };
     }
   }
@@ -2697,14 +2712,15 @@ Example patterns:
     let newLayer: string;
     try {
       newLayer = this.generateComplementaryLayer(layer, key, tempo, detectedStyle, existingLayers);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `Failed to generate ${layer} layer: ${error.message}`,
+        message: `Failed to generate ${layer} layer: ${message}`,
         layer,
         detected: { tempo, key, existingLayers },
         newLayer: '',
-        error: error.message
+        error: message
       };
     }
 
@@ -2724,14 +2740,15 @@ Example patterns:
         newLayer,
         pattern: mergedPattern.substring(0, 300) + (mergedPattern.length > 300 ? '...' : '')
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `Failed to write merged pattern: ${error.message}`,
+        message: `Failed to write merged pattern: ${message}`,
         layer,
         detected: { tempo, key, existingLayers },
         newLayer,
-        error: error.message
+        error: message
       };
     }
   }
