@@ -665,6 +665,19 @@ export class StrudelMCPServer {
         }
       },
 
+      // Audio-to-Pattern Tool (#95)
+      {
+        name: 'suggest_pattern_from_audio',
+        description: 'Analyze the currently playing audio and suggest a complementary Strudel pattern using Gemini AI. Extracts tempo, key, and spectral features locally, then uses AI to generate a matching pattern. Returns pattern text (not auto-executed).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            style: { type: 'string', description: 'Optional style hint (e.g., "ambient", "techno", "jazz")' },
+            role: { type: 'string', enum: ['complement', 'bassline', 'melody', 'percussion'], description: 'What role the suggested pattern should fill. Default: complement' }
+          }
+        }
+      },
+
       // Audio Capture Tools (#72)
       {
         name: 'start_audio_capture',
@@ -1755,6 +1768,9 @@ export class StrudelMCPServer {
       case 'get_pattern_feedback':
         return await this.getPatternFeedback(args?.includeAudio || false, args?.style);
 
+      case 'suggest_pattern_from_audio':
+        return await this.suggestPatternFromAudio(args?.style, args?.role || 'complement');
+
       // Audio Capture Tools (#72)
       case 'start_audio_capture':
         return await this.startAudioCapture(args?.format, args?.maxDuration);
@@ -2189,6 +2205,92 @@ export class StrudelMCPServer {
     }
 
     return result;
+  }
+
+  /**
+   * Suggests a complementary Strudel pattern based on audio analysis.
+   * Pipeline: local DSP analysis → text prompt to Gemini → validate → return text.
+   * Pattern is NOT auto-executed — user must explicitly write + play. (#95)
+   */
+  private async suggestPatternFromAudio(
+    style?: string,
+    role: string = 'complement'
+  ): Promise<Record<string, unknown>> {
+    if (!this.isInitialized) {
+      return { error: 'Browser not initialized. Run init and play a pattern first.' };
+    }
+
+    if (!this.geminiService.isAvailable()) {
+      return { error: 'Gemini API not configured. Set GEMINI_API_KEY to enable AI features.' };
+    }
+
+    // Step 1: Local audio analysis (DSP — no LLM needed)
+    let bpm = 0;
+    let key = 'C';
+    let scale = 'major';
+
+    try {
+      const tempoResult = await this.controller.detectTempo();
+      if (tempoResult && tempoResult.bpm > 0) bpm = tempoResult.bpm;
+    } catch { /* best effort */ }
+
+    try {
+      const keyResult = await this.controller.detectKey();
+      if (keyResult && keyResult.confidence > 0.1) {
+        key = keyResult.key;
+        scale = keyResult.scale;
+      }
+    } catch { /* best effort */ }
+
+    // Step 2: Build text prompt with local analysis results
+    const roleDesc: Record<string, string> = {
+      complement: 'a complementary layer that fills sonic gaps',
+      bassline: 'a bassline that grooves with the rhythm',
+      melody: 'a melodic line that harmonizes with the key',
+      percussion: 'a percussion layer that adds rhythmic interest',
+    };
+    const roleText = roleDesc[role] || roleDesc['complement'];
+    const styleText = style ? ` in a ${style} style` : '';
+    const tempoText = bpm > 0 ? `Detected tempo: ${bpm} BPM. ` : '';
+    const keyText = `Detected key: ${key} ${scale}. `;
+
+    const prompt = `You are a Strudel.cc live coding expert. Generate ${roleText}${styleText} for an existing pattern.
+
+${tempoText}${keyText}
+
+Generate ONLY valid Strudel.cc pattern code. Use functions like s(), note(), n(), .speed(), .gain(), .lpf(), .delay(), .room(), .pan(). Respond with ONLY the pattern code, no explanation.
+
+Example patterns:
+- Bass: note("c2 eb2 g2 bb2").s("sawtooth").lpf(800).gain(0.6)
+- Melody: note("c4 e4 g4 c5").s("triangle").delay(0.3).room(0.4)
+- Drums: s("bd*4, ~ sd ~ sd, hh*8").gain(0.7)
+- Ambient: note("c3 e3 g3").s("sine").room(0.8).delay(0.5).gain(0.3)`;
+
+    // Step 3: Call Gemini with text prompt (not raw audio)
+    try {
+      const geminiResponse = await this.geminiService.suggestVariations(prompt, style);
+      if (!geminiResponse || geminiResponse.length === 0) {
+        return { error: 'Gemini returned no pattern suggestions.' };
+      }
+
+      const suggestedPattern = geminiResponse[0].code;
+
+      // Step 4: Validate via StrudelEngine
+      const validation = this.strudelEngine.validate(suggestedPattern);
+
+      return {
+        suggested_pattern: suggestedPattern,
+        analysis: { bpm, key, scale },
+        role,
+        style: style || 'auto',
+        valid: validation.valid,
+        validation_errors: validation.valid ? [] : validation.errors,
+        usage: 'Use write tool to load this pattern, then play to hear it.',
+      };
+    } catch (error: any) {
+      this.logger.error('Audio-to-pattern suggestion failed', error);
+      return { error: `Pattern suggestion failed: ${error.message}` };
+    }
   }
 
   /**

@@ -11,7 +11,7 @@
 [![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
 [![Nerq Trust](https://nerq.ai/badge/strudel-mcp-server)](https://nerq.ai/kya/strudel-mcp-server)
-[![Tools](https://img.shields.io/badge/tools-65-green.svg)]()
+[![Tools](https://img.shields.io/badge/tools-66-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
@@ -153,7 +153,7 @@ Then ask Claude:
 
 <!-- TOOLS:START -->
 
-**65 tools** across 14 categories:
+**66 tools** across 15 categories:
 
 <details><summary><strong>Setup</strong> (1)</summary>
 
@@ -318,7 +318,15 @@ Then ask Claude:
 
 </details>
 
-_Auto-generated from source. 65 tools registered._
+<details><summary><strong>Other</strong> (1)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `suggest_pattern_from_audio` | Analyze the currently playing audio and suggest a complementary Strudel pattern using Gemini AI. Extracts tempo, key, and spectral features locally, then uses AI to generate a matching pattern. Returns pattern text (not auto-executed). |
+
+</details>
+
+_Auto-generated from source. 66 tools registered._
 
 <!-- TOOLS:END -->
 
