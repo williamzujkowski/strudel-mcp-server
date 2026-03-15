@@ -34,17 +34,17 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@strudel/core": "1.1.0",
-    "@strudel/mini": "1.1.0",
-    "@strudel/tonal": "1.1.0",
-    "@strudel/transpiler": "1.1.0",
+    "@strudel/core": "^1.2.6",
+    "@strudel/mini": "^1.2.6",
+    "@strudel/tonal": "^1.2.6",
+    "@strudel/transpiler": "^1.2.6",
     "@tonejs/midi": "^2.0.28",
     "google-auth-library": "^10.5.0",
-    "playwright": "^1.40.0"
+    "playwright": "^1.52.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
@@ -78,7 +78,7 @@
   },
   "homepage": "https://github.com/williamzujkowski/strudel-mcp-server#readme",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   }
 }
