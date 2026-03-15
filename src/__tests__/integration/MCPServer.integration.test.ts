@@ -15,7 +15,7 @@ jest.mock('@modelcontextprotocol/sdk/types.js', () => ({
   ListToolsRequestSchema: {},
 }));
 
-import { EnhancedMCPServerFixed } from '../../server/EnhancedMCPServerFixed';
+import { StrudelMCPServer } from '../../server/server';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { chromium } from 'playwright';
 import { MockBrowser, createMockPage } from '../utils/MockPlaywright';
@@ -28,7 +28,7 @@ jest.mock('../../PatternStore');
 jest.mock('../../services/StrudelEngine');
 
 describe('MCP Server Integration Tests', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockBrowser: MockBrowser;
 
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe('MCP Server Integration Tests', () => {
 
     // Note: We can't fully test the server without MCP transport infrastructure,
     // but we can test the tool registration and basic structure
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('MCP Server Integration Tests', () => {
   describe('Server Initialization', () => {
     test('should create server instance', () => {
       expect(server).toBeDefined();
-      expect(server).toBeInstanceOf(EnhancedMCPServerFixed);
+      expect(server).toBeInstanceOf(StrudelMCPServer);
     });
 
     test('should have all required components', () => {

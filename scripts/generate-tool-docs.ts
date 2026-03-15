@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
-const SERVER_PATH = join(ROOT, 'src/server/EnhancedMCPServerFixed.ts');
+const SERVER_PATH = join(ROOT, 'src/server/server.ts');
 const README_PATH = join(ROOT, 'README.md');
 
 const START_MARKER = '<!-- TOOLS:START -->';

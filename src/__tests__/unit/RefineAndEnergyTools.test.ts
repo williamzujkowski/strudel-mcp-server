@@ -5,7 +5,7 @@
  * Covers tempo, gain, cutoff, reverb modifications, and energy-based pattern changes.
  */
 
-import { EnhancedMCPServerFixed } from '../../server/EnhancedMCPServerFixed';
+import { StrudelMCPServer } from '../../server/server';
 import { StrudelController } from '../../StrudelController';
 import { PatternStore } from '../../PatternStore';
 import { MusicTheory } from '../../services/MusicTheory';
@@ -32,7 +32,7 @@ jest.mock('fs', () => ({
 }));
 
 describe('refine Tool (#78)', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockGeminiService: jest.Mocked<GeminiService>;
 
@@ -100,7 +100,7 @@ describe('refine Tool (#78)', () => {
     });
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   describe('Tempo Adjustments', () => {
@@ -292,7 +292,7 @@ describe('refine Tool (#78)', () => {
 });
 
 describe('set_energy Tool (#81)', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
 
   beforeEach(() => {
@@ -356,7 +356,7 @@ describe('set_energy Tool (#81)', () => {
       jamWithPattern: jest.fn().mockResolvedValue({ layer: 'drums', code: 's("bd*4")' })
     });
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   describe('Energy Level 0 (Minimal/Ambient)', () => {
@@ -556,7 +556,7 @@ describe('set_energy Tool (#81)', () => {
 
 describe('Tool Definitions', () => {
   test('refine tool should be registered in server tools list', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const refineTool = tools.find((t: any) => t.name === 'refine');
@@ -567,7 +567,7 @@ describe('Tool Definitions', () => {
   });
 
   test('set_energy tool should be registered in server tools list', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const energyTool = tools.find((t: any) => t.name === 'set_energy');
@@ -579,7 +579,7 @@ describe('Tool Definitions', () => {
   });
 
   test('refine tool should have correct input schema', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const refineTool = tools.find((t: any) => t.name === 'refine');
@@ -591,7 +591,7 @@ describe('Tool Definitions', () => {
   });
 
   test('set_energy tool should have correct input schema', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const energyTool = tools.find((t: any) => t.name === 'set_energy');

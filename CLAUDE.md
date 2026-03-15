@@ -153,7 +153,7 @@ Adding context guidelines to CLAUDE.md after line 70.
 ## Project Purpose
 This is an **open source, actively developed** MCP server enabling AI agents to generate music via Strudel.cc using browser automation.
 
-**Current State:** Functional but experimental. 78% test coverage (goal: 80%). Known issues exist (see GitHub Issues). Contributions welcome.
+**Current State:** Functional but experimental. Known issues exist (see GitHub Issues). Contributions welcome.
 
 ## GitHub Issues Workflow
 
@@ -237,7 +237,7 @@ Integration: Playwright → Strudel.cc
 
 ## Key Components
 
-### 1. EnhancedMCPServerFixed (`src/server/EnhancedMCPServerFixed.ts`)
+### 1. StrudelMCPServer (`src/server/server.ts`)
 - **Purpose**: MCP protocol handling, tool registration
 - **Tools**: 66 registered tools for pattern generation, manipulation, analysis
 - **Key Methods**: `setupHandlers()`, `executeTool()`, `handleToolsList()`
@@ -304,12 +304,12 @@ npm run validate       # Test MCP protocol
 
 ### Testing
 ```bash
-npm test              # Run Jest tests (1521 tests)
+npm test              # Run Jest tests
 npm run test:watch    # Watch mode
 ```
 
 ### Adding New Tools
-1. Define tool in `EnhancedMCPServerFixed.setupHandlers()`:
+1. Define tool in `StrudelMCPServer.setupHandlers()`:
    ```typescript
    server.setRequestHandler(CallToolRequestSchema, async (request) => {
      const { name, arguments: args } = request.params;
@@ -394,7 +394,7 @@ src/
 ├── AudioAnalyzer.ts            # Audio analysis (804 lines)
 ├── PatternStore.ts             # Persistence (205 lines)
 ├── server/
-│   └── EnhancedMCPServerFixed.ts  # MCP server (2844 lines)
+│   └── server.ts                    # MCP server (2844 lines)
 ├── services/
 │   ├── MusicTheory.ts          # Music theory (204 lines)
 │   ├── PatternGenerator.ts     # Pattern generation (684 lines)
@@ -408,7 +408,7 @@ src/
 │   ├── ErrorRecovery.ts        # Error handling (338 lines)
 │   ├── PerformanceMonitor.ts   # Monitoring (156 lines)
 │   └── InputValidator.ts       # Input validation (321 lines)
-└── __tests__/                  # Jest tests (1521 tests)
+└── __tests__/                  # Jest tests
 ```
 
 ## Testing Strategy
@@ -447,7 +447,7 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"generate_drums","
 ### Integration Points
 - `StrudelController.initialize()` - Browser setup, resource blocking
 - `AudioAnalyzer.inject()` - Web Audio API monkey-patching
-- `EnhancedMCPServerFixed.executeTool()` - Tool routing
+- `StrudelMCPServer.executeTool()` - Tool routing
 
 ## When Making Changes
 
@@ -515,7 +515,7 @@ async detectTempo(page: Page): Promise<TempoAnalysis> {
 
 **System Documentation:**
 - Architecture: See "Core Architecture" section in CLAUDE.md
-- API: Tool descriptions in EnhancedMCPServerFixed.ts
+- API: Tool descriptions in server.ts
 - Deployment: README.md installation section
 - Examples: `patterns/examples/README.md`
 
@@ -955,7 +955,7 @@ See GitHub issues for UX improvements:
 - #41: Add pattern history browsing
 - #42: Add high-level compose workflow
 
-## Future Enhancements (See FUTURE_ENHANCEMENTS.md)
+## Future Enhancements
 - Multi-session support
 - WebWorker audio analysis
 - SQLite pattern store

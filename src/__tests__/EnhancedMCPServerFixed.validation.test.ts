@@ -1,5 +1,5 @@
 /**
- * Validation Tests for EnhancedMCPServerFixed
+ * Validation Tests for StrudelMCPServer
  *
  * This test suite verifies that all MCP tools properly validate their input parameters
  * before executing operations. Tests are organized by tool category.
@@ -7,7 +7,7 @@
 
 import { InputValidator } from '../utils/InputValidator';
 
-describe('EnhancedMCPServerFixed - Parameter Validation', () => {
+describe('StrudelMCPServer - Parameter Validation', () => {
   describe('Tempo/BPM Tools', () => {
     describe('set_tempo tool', () => {
       test('should validate BPM parameter', () => {

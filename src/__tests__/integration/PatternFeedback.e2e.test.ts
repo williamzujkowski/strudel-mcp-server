@@ -43,7 +43,7 @@ jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true),
 }));
 
-import { EnhancedMCPServerFixed } from '../../server/EnhancedMCPServerFixed';
+import { StrudelMCPServer } from '../../server/server';
 import { StrudelController } from '../../StrudelController';
 import { PatternStore } from '../../PatternStore';
 import { GeminiService, CreativeFeedback, AudioFeedback } from '../../services/GeminiService';
@@ -84,7 +84,7 @@ const mockAudioFeedback: AudioFeedback = {
 };
 
 describe('Pattern Feedback E2E Tests - Mocked Gemini (CI Compatible)', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockGeminiService: jest.Mocked<GeminiService>;
   let currentPattern: string = '';
@@ -155,7 +155,7 @@ describe('Pattern Feedback E2E Tests - Mocked Gemini (CI Compatible)', () => {
     (PatternStore as jest.Mock).mockReturnValue(mockStore);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   // ===========================================================================
@@ -756,7 +756,7 @@ describe('Pattern Feedback E2E Tests - Real Gemini (Requires API Key)', () => {
 // ===========================================================================
 
 describe('Performance Testing - Compose + Feedback', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockGeminiService: jest.Mocked<GeminiService>;
   let currentPattern: string = '';
@@ -798,7 +798,7 @@ describe('Performance Testing - Compose + Feedback', () => {
     (StrudelController as jest.Mock).mockReturnValue(mockController);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   it('should complete compose + feedback within acceptable time', async () => {
@@ -864,7 +864,7 @@ describe('Performance Testing - Compose + Feedback', () => {
 // ===========================================================================
 
 describe('Full MCP Flow Integration', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockGeminiService: jest.Mocked<GeminiService>;
   let currentPattern: string = '';
@@ -902,7 +902,7 @@ describe('Full MCP Flow Integration', () => {
     (StrudelController as jest.Mock).mockReturnValue(mockController);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   it('should complete full workflow: init -> compose -> feedback -> analyze', async () => {
@@ -1016,7 +1016,7 @@ describe('Full MCP Flow Integration', () => {
 // ===========================================================================
 
 describe('Edge Cases and Error Boundaries', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockGeminiService: jest.Mocked<GeminiService>;
   let currentPattern: string = '';
@@ -1054,7 +1054,7 @@ describe('Edge Cases and Error Boundaries', () => {
     (StrudelController as jest.Mock).mockReturnValue(mockController);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   it('should handle Gemini returning empty arrays', async () => {

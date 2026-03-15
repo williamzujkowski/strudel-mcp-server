@@ -5,7 +5,7 @@
  * Covers success cases, error handling, and parameter variations
  */
 
-import { EnhancedMCPServerFixed } from '../../server/EnhancedMCPServerFixed';
+import { StrudelMCPServer } from '../../server/server';
 import { StrudelController } from '../../StrudelController';
 import { PatternStore } from '../../PatternStore';
 import { MusicTheory } from '../../services/MusicTheory';
@@ -41,7 +41,7 @@ const mockAudioFeedback: AudioFeedback = {
 };
 
 describe('get_pattern_feedback Tool', () => {
-  let server: EnhancedMCPServerFixed;
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockStore: jest.Mocked<PatternStore>;
   let mockTheory: jest.Mocked<MusicTheory>;
@@ -129,7 +129,7 @@ describe('get_pattern_feedback Tool', () => {
     (PatternGenerator as jest.Mock).mockReturnValue(mockGenerator);
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   describe('Pattern Analysis - Gemini Available', () => {
@@ -344,7 +344,7 @@ describe('get_pattern_feedback Tool', () => {
 
     test('should handle uninitialized state for audio analysis', async () => {
       // Create new server without initialization
-      const uninitServer = new EnhancedMCPServerFixed();
+      const uninitServer = new StrudelMCPServer();
 
       const result = await (uninitServer as any).executeTool('get_pattern_feedback', {
         includeAudio: true
@@ -414,7 +414,7 @@ describe('get_pattern_feedback Tool', () => {
     });
 
     test('should handle uninitialized browser for audio requests', async () => {
-      const uninitServer = new EnhancedMCPServerFixed();
+      const uninitServer = new StrudelMCPServer();
 
       const result = await (uninitServer as any).executeTool('get_pattern_feedback', {
         includeAudio: true
@@ -503,7 +503,7 @@ describe('get_pattern_feedback Tool', () => {
 
 describe('get_pattern_feedback Tool - Tool Definition', () => {
   test('tool should be registered in server tools list', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const feedbackTool = tools.find((t: any) => t.name === 'get_pattern_feedback');
@@ -513,7 +513,7 @@ describe('get_pattern_feedback Tool - Tool Definition', () => {
   });
 
   test('tool should have correct input schema', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const feedbackTool = tools.find((t: any) => t.name === 'get_pattern_feedback');
@@ -527,7 +527,7 @@ describe('get_pattern_feedback Tool - Tool Definition', () => {
   });
 
   test('tool should have description mentioning Gemini', () => {
-    const server = new EnhancedMCPServerFixed();
+    const server = new StrudelMCPServer();
     const tools = (server as any).getTools();
 
     const feedbackTool = tools.find((t: any) => t.name === 'get_pattern_feedback');

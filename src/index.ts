@@ -12,13 +12,13 @@ console.log = (...args: any[]) => {
 };
 
 // Use dynamic import so suppression takes effect before @strudel loads
-const { EnhancedMCPServerFixed } = await import('./server/EnhancedMCPServerFixed.js');
+const { StrudelMCPServer } = await import('./server/server.js');
 
 // Restore stdout after imports complete
 process.stdout.write = originalStdoutWrite;
 console.log = originalConsoleLog;
 
-const server = new EnhancedMCPServerFixed();
+const server = new StrudelMCPServer();
 server.run().catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);

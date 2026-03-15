@@ -16,25 +16,25 @@
 
 An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
 
-**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. Test coverage is at 78% with 1470 tests passing (1521 total, 51 skipped). See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Installation](#-installation)
-- [Quick Reference](#-quick-reference)
-- [Quick Start](#-quick-start)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Reference](#quick-reference)
+- [Quick Start](#quick-start)
 - [Available Tools](#available-tools)
-- [Usage Examples](#-usage-examples)
-- [Architecture](#-architecture)
-- [Advanced Usage](#-advanced-usage)
-- [Configuration](#-configuration)
-- [Security](#-security)
-- [Troubleshooting](#-troubleshooting)
-- [Development](#-development)
-- [Contributing](#-contributing)
+- [Usage Examples](#usage-examples)
+- [Architecture](#architecture)
+- [Advanced Usage](#advanced-usage)
+- [Configuration](#configuration)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Contributing](#contributing)
 
-## ✨ Features
+## Features
 
 ### 🎹 Complete Music Control
 - **65 MCP Tools**: Comprehensive suite for music creation and manipulation
@@ -45,8 +45,8 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - **Session Management**: Save, load, undo/redo with pattern storage
 
 ### 🔧 Testing & Development Status
-- ✅ **Test Suite**: 1470 tests passing (1521 total, 51 skipped)
-- ✅ **Code Coverage**: 78% statement coverage (goal: 80%)
+- ✅ **Test Suite**: Comprehensive test coverage across unit, integration, and validation tests
+- ✅ **Code Coverage**: Actively tracked via CI
 - ✅ **Browser Integration**: Works with live Strudel.cc website
 - ✅ **Audio Analysis**: Real-time FFT analysis functional
 - ✅ **Pattern Generation**: Core music generation features working
@@ -71,7 +71,7 @@ Explore 17 curated example patterns across 10 genres in [`patterns/examples/`](p
 
 Each example includes pattern code, BPM, key, and description. See [`patterns/examples/README.md`](patterns/examples/README.md) for details.
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -108,7 +108,7 @@ npx playwright install chromium
 npm run build
 ```
 
-## 🚀 Quick Reference
+## Quick Reference
 
 Common commands for immediate use:
 
@@ -128,7 +128,7 @@ Common commands for immediate use:
 compose with style: "dnb", key: "Am", bpm: 174, auto_play: true
 ```
 
-## 🎯 Quick Start
+## Quick Start
 
 ### 1. Add to Claude
 ```bash
@@ -322,7 +322,7 @@ _Auto-generated from source. 65 tools registered._
 
 <!-- TOOLS:END -->
 
-## 🎵 Usage Examples
+## Usage Examples
 
 ### Basic Pattern Creation
 
@@ -524,7 +524,7 @@ note("c4 eb4 g4 bb4 c5").struct("1 1 1 1 1 1 1 1")
   .s("triangle").delay(0.25).room(0.3).gain(0.5)
 ```
 
-## 🧪 Testing
+## Testing
 
 All tools have been tested with real Strudel.cc interaction:
 
@@ -535,10 +535,10 @@ npm run test:integration
 # Run browser tests
 node tests/strudel-integration.js
 
-# Test results: 1470/1521 tests passing (96.6%), 51 skipped (browser tests in CI)
+# Run npm test to see current pass/fail/skip counts
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### config.json
 ```json
@@ -553,7 +553,7 @@ node tests/strudel-integration.js
 }
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -567,7 +567,7 @@ The Strudel MCP Server is built with a modular architecture that separates conce
                         │ MCP Protocol (stdio)
                         │
 ┌───────────────────────▼─────────────────────────────────────┐
-│              EnhancedMCPServerFixed                          │
+│              StrudelMCPServer                          │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  Tool Request Handler                                  │ │
 │  │  - Validates inputs                                    │ │
@@ -605,7 +605,7 @@ The Strudel MCP Server is built with a modular architecture that separates conce
 
 ### Core Components
 
-#### 1. **EnhancedMCPServerFixed** (`src/server/EnhancedMCPServerFixed.ts`)
+#### 1. **StrudelMCPServer** (`src/server/server.ts`)
 
 Main MCP server implementation handling:
 - **65 Tool Definitions**: Complete API surface for music control
@@ -717,8 +717,7 @@ Persistent pattern storage:
 strudel-mcp-server/
 ├── src/
 │   ├── server/
-│   │   ├── EnhancedMCPServer.ts          # Original implementation
-│   │   └── EnhancedMCPServerFixed.ts     # Production version
+│   │   └── server.ts                    # MCP server
 │   ├── services/
 │   │   ├── MusicTheory.ts                # Theory engine
 │   │   └── PatternGenerator.ts           # Pattern creation
@@ -746,7 +745,7 @@ strudel-mcp-server/
 
 1. **Tool Invocation**
    ```
-   Claude → MCP Protocol → EnhancedMCPServerFixed
+   Claude → MCP Protocol → StrudelMCPServer
    ```
 
 2. **Pattern Generation** (without browser)
@@ -794,7 +793,7 @@ strudel-mcp-server/
    - Browser starts only when needed
    - Services initialized on-demand
 
-## 🎹 Pattern Examples
+## Pattern Examples
 
 ### Minimal Techno (Verified Working)
 ```javascript
@@ -826,7 +825,7 @@ stack(
 )
 ```
 
-## 🐳 Docker Support
+## Docker Support
 
 ```bash
 # Build image
@@ -839,7 +838,7 @@ docker run -it --rm strudel-mcp
 docker-compose up
 ```
 
-## 🔧 Development
+## Development
 
 ### Setup Development Environment
 
@@ -910,8 +909,7 @@ The package uses OIDC trusted publishing with provenance attestation for supply 
 ```
 src/
 ├── server/
-│   ├── EnhancedMCPServer.ts          # Original implementation
-│   └── EnhancedMCPServerFixed.ts     # Production version with caching
+│   └── server.ts                    # MCP server
 │
 ├── services/
 │   ├── MusicTheory.ts                # Music theory engine
@@ -1237,7 +1235,7 @@ FFT_SIZE=1024
 SMOOTHING=0.8
 ```
 
-## 📊 Performance
+## Performance
 
 - **Pattern Generation**: <100ms
 - **Browser Initialization**: ~3 seconds
@@ -1246,7 +1244,7 @@ SMOOTHING=0.8
 - **Audio Analysis**: Real-time
 - **Memory Usage**: <150MB
 
-## 🎓 Advanced Usage
+## Advanced Usage
 
 ### Custom Music Theory
 
@@ -1645,7 +1643,7 @@ If you encounter issues not covered here:
 - **Report Bugs**: Found an issue? [Open a bug report](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
 - **Suggest Features**: Have ideas? [Create a feature request](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
 - **Improve Docs**: Fix typos, add examples, clarify confusing sections
-- **Write Tests**: Help us reach 80% coverage (currently 78%)
+- **Write Tests**: Help us improve test coverage
 - **Fix Issues**: Check [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for bugs to fix
 - **Add Features**: Implement new tools or improve existing ones
 

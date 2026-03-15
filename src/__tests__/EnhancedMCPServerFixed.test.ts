@@ -1,11 +1,11 @@
 /**
- * Core Tests for EnhancedMCPServerFixed
+ * Core Tests for StrudelMCPServer
  *
  * Tests tool execution paths, state management, and error handling
  * to increase coverage from 35% to 70%+
  */
 
-import { EnhancedMCPServerFixed } from '../server/EnhancedMCPServerFixed';
+import { StrudelMCPServer } from '../server/server';
 import { StrudelController } from '../StrudelController';
 import { PatternStore } from '../PatternStore';
 import { MusicTheory } from '../services/MusicTheory';
@@ -28,8 +28,8 @@ jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true)
 }));
 
-describe('EnhancedMCPServerFixed', () => {
-  let server: EnhancedMCPServerFixed;
+describe('StrudelMCPServer', () => {
+  let server: StrudelMCPServer;
   let mockController: jest.Mocked<StrudelController>;
   let mockStore: jest.Mocked<PatternStore>;
   let mockTheory: jest.Mocked<MusicTheory>;
@@ -189,7 +189,7 @@ describe('EnhancedMCPServerFixed', () => {
     (GeminiService as jest.Mock).mockReturnValue(mockGeminiService);
     (SessionManager as jest.Mock).mockReturnValue(mockSessionManager);
 
-    server = new EnhancedMCPServerFixed();
+    server = new StrudelMCPServer();
   });
 
   afterEach(() => {
@@ -243,7 +243,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should require initialization for write', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('write', { pattern: 's("bd*4")' });
 
         expect(result).toContain('not initialized');
@@ -758,7 +758,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('analyze', {});
 
         expect(result).toContain('not initialized');
@@ -822,7 +822,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('detect_tempo', {});
 
         expect(result).toContain('not initialized');
@@ -871,7 +871,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('detect_key', {});
 
         expect(result).toContain('not initialized');
@@ -977,7 +977,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('undo', {});
 
         expect(result).toContain('not initialized');
@@ -1061,7 +1061,7 @@ describe('EnhancedMCPServerFixed', () => {
     });
 
     test('should require initialization', async () => {
-      const uninitServer = new EnhancedMCPServerFixed();
+      const uninitServer = new StrudelMCPServer();
       const result = await (uninitServer as any).executeTool('validate_pattern_runtime', {
         pattern: 's("bd*4")'
       });
@@ -1078,7 +1078,7 @@ describe('EnhancedMCPServerFixed', () => {
     });
 
     test('should require initialization for browser tools', async () => {
-      const uninitServer = new EnhancedMCPServerFixed();
+      const uninitServer = new StrudelMCPServer();
 
       const result = await (uninitServer as any).executeTool('play', {});
 
@@ -1397,7 +1397,7 @@ describe('EnhancedMCPServerFixed', () => {
 
     describe('Pattern History (#41)', () => {
       test('list_history should return empty message when no history', async () => {
-        const newServer = new EnhancedMCPServerFixed();
+        const newServer = new StrudelMCPServer();
         const result = await (newServer as any).executeTool('list_history', {});
 
         expect(result).toContain('No pattern history yet');
@@ -1466,7 +1466,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('restore_history should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('restore_history', {
           id: 1
         });
@@ -1540,7 +1540,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('start_audio_capture should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('start_audio_capture', {});
 
         expect(result.success).toBe(false);
@@ -1577,7 +1577,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('stop_audio_capture should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('stop_audio_capture', {});
 
         expect(result.success).toBe(false);
@@ -1609,7 +1609,7 @@ describe('EnhancedMCPServerFixed', () => {
       });
 
       test('capture_audio_sample should require initialization', async () => {
-        const uninitServer = new EnhancedMCPServerFixed();
+        const uninitServer = new StrudelMCPServer();
         const result = await (uninitServer as any).executeTool('capture_audio_sample', {});
 
         expect(result.success).toBe(false);

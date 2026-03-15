@@ -77,7 +77,7 @@ const MOOD_PROFILES: Record<string, MoodProfile> = {
   energetic: { preferMinor: false, tempoMod: 0.2, cutoffMod: 300, roomMod: 0, gainMod: 0.1, noteShift: 0 }
 };
 
-export class EnhancedMCPServerFixed {
+export class StrudelMCPServer {
   private server: Server;
   private controller: StrudelController;
   private store: PatternStore;
