@@ -24,7 +24,7 @@ An experimental Model Context Protocol (MCP) server that enables Claude to contr
 - [Installation](#-installation)
 - [Quick Reference](#-quick-reference)
 - [Quick Start](#-quick-start)
-- [Available Tools](#-available-tools-65)
+- [Available Tools](#available-tools)
 - [Usage Examples](#-usage-examples)
 - [Architecture](#-architecture)
 - [Advanced Usage](#-advanced-usage)
@@ -149,102 +149,178 @@ Then ask Claude:
 - "Generate a jazz chord progression in F major"
 - "Create a drum & bass pattern at 174 BPM"
 
-## 🛠️ Available Tools (65)
+## Available Tools
 
-### Core Control (10 tools)
-| Tool | Description | Example |
-|------|-------------|---------|
-| `init` | Initialize Strudel in browser | "Initialize Strudel" |
-| `write` | Write pattern to editor | "Write pattern: s('bd*4')" |
-| `play` | Start playback | "Play the pattern" |
-| `stop` | Stop playback | "Stop playing" |
-| `clear` | Clear editor | "Clear the editor" |
-| `get_pattern` | Get current pattern | "Show current pattern" |
-| `append` | Add to pattern | "Add hi-hats" |
-| `insert` | Insert at line | "Insert at line 2" |
-| `replace` | Replace text | "Replace bd with sn" |
-| `pause` | Pause playback | "Pause" |
+<!-- TOOLS:START -->
 
-### Pattern Generation & Manipulation (10 tools)
-| Tool | Description | Options |
-|------|-------------|---------|
-| `generate_pattern` | Complete patterns | techno, house, dnb, ambient, trap, jungle, jazz, intelligent_dnb, trip_hop, boom_bap |
-| `generate_drums` | Drum patterns | All styles + complexity (0-1) |
-| `generate_bassline` | Bass patterns | techno, house, dnb, acid, dub, funk, jazz, intelligent_dnb, trip_hop, boom_bap |
-| `generate_melody` | Melodic lines | Any scale, custom length |
-| `generate_variation` | Pattern variations | subtle, moderate, extreme, glitch |
-| `transpose` | Transpose notes | ±12 semitones |
-| `reverse` | Reverse pattern | - |
-| `stretch` | Time stretch | Factor 0.1-10 |
-| `quantize` | Quantize to grid | 1/4, 1/8, 1/16, etc. |
-| `humanize` | Add timing variation | Amount 0-1 |
+**65 tools** across 14 categories:
 
-### Music Theory (6 tools)
-| Tool | Description | Options |
-|------|-------------|---------|
-| `generate_scale` | Generate scales | major, minor, modes, pentatonic, blues |
-| `generate_chord_progression` | Chord progressions | pop, jazz, blues, rock, folk |
-| `generate_euclidean` | Euclidean rhythms | hits/steps/sound |
-| `generate_polyrhythm` | Polyrhythms | Multiple patterns |
-| `generate_fill` | Generate drum fills | All styles, 1-4 bars |
-| `apply_scale` | Apply scale to notes | Any scale |
+<details><summary><strong>Setup</strong> (1)</summary>
 
-### Effects (4 tools)
 | Tool | Description |
 |------|-------------|
-| `add_effect` | Add audio effect (reverb, delay, etc.) |
-| `remove_effect` | Remove an effect from the chain |
-| `set_tempo` | Set BPM (60-200) |
-| `add_swing` | Add swing feel (0-1 amount) |
+| `init` | Initialize Strudel in browser |
 
-### Session Management (5 tools)
+</details>
+
+<details><summary><strong>Pattern Editing</strong> (5)</summary>
+
 | Tool | Description |
 |------|-------------|
-| `save` | Save pattern with tags |
+| `write` | Write pattern to editor with optional auto-play and validation |
+| `append` | Append code to current pattern |
+| `insert` | Insert code at specific line |
+| `replace` | Replace pattern section |
+| `get_pattern` | Get current pattern code |
+
+</details>
+
+<details><summary><strong>Playback</strong> (6)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `play` | Start playing pattern |
+| `pause` | Pause playback |
+| `stop` | Stop playback |
+| `clear` | Clear the editor |
+| `set_tempo` | Set BPM |
+| `status` | Get current browser and playback status (quick state check) |
+
+</details>
+
+<details><summary><strong>Storage</strong> (3)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `save` | Save pattern with metadata |
 | `load` | Load saved pattern |
-| `list` | List all patterns |
+| `list` | List saved patterns |
+
+</details>
+
+<details><summary><strong>History</strong> (4)</summary>
+
+| Tool | Description |
+|------|-------------|
 | `undo` | Undo last action |
 | `redo` | Redo action |
+| `list_history` | List recent pattern history with timestamps and previews |
+| `restore_history` | Restore a previous pattern from history by ID |
 
-### Pattern History (3 tools)
+</details>
+
+<details><summary><strong>Generation</strong> (8)</summary>
+
 | Tool | Description |
 |------|-------------|
-| `list_history` | Browse pattern history with timestamps and previews |
-| `restore_history` | Restore a previous pattern by ID |
-| `compare_patterns` | Compare two patterns showing line-by-line differences |
+| `generate_variation` | Create pattern variations |
+| `generate_pattern` | Generate complete pattern from style with optional auto-play |
+| `generate_drums` | Generate drum pattern |
+| `generate_bassline` | Generate bassline |
+| `generate_melody` | Generate melody from scale |
+| `generate_polyrhythm` | Generate polyrhythm |
+| `generate_fill` | Generate drum fill |
+| `compose` | Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed. |
 
-### Audio Analysis (6 tools)
+</details>
+
+<details><summary><strong>Music Theory</strong> (4)</summary>
+
 | Tool | Description |
 |------|-------------|
-| `analyze` | Basic audio analysis (frequency, playing state) |
-| `analyze_spectrum` | FFT spectral analysis |
-| `analyze_rhythm` | Rhythm complexity analysis |
+| `apply_scale` | Apply scale to notes |
+| `generate_scale` | Generate scale notes |
+| `generate_chord_progression` | Generate chord progression |
+| `generate_euclidean` | Generate Euclidean rhythm |
+
+</details>
+
+<details><summary><strong>Transform</strong> (9)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `transpose` | Transpose notes by semitones |
+| `reverse` | Reverse pattern |
+| `stretch` | Time stretch pattern |
+| `quantize` | Quantize to grid |
+| `humanize` | Add human timing variation |
+| `add_effect` | Add effect to pattern |
+| `remove_effect` | Remove effect |
+| `add_swing` | Add swing to pattern |
+| `set_energy` | Adjust the overall energy level of the current pattern on a 0-10 scale. 0: minimal/ambient, 1-2: sparse, 3-4: light/relaxed, 5-6: normal/moderate, 7-8: driving/intense, 9-10: maximum. Auto-plays after applying energy level. |
+
+</details>
+
+<details><summary><strong>AI</strong> (4)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `shift_mood` | Transform current pattern to match a different emotional mood by adjusting tempo, effects, and note choices. Moods: dark, euphoric, melancholic, aggressive, dreamy, peaceful, energetic. |
+| `get_pattern_feedback` | Get AI-powered creative feedback on the current pattern using Google Gemini. Analyzes pattern structure and optionally audio. |
+| `refine` | Incrementally refine the current pattern with simple directional commands. Supports: faster/slower (tempo), louder/quieter (gain), brighter/darker (filter cutoff), "more reverb"/drier (reverb). Auto-plays after applying refinement. |
+| `jam_with` | AI generates a complementary layer to jam with your pattern. Analyzes current pattern to detect tempo, key, and existing layers, then generates a matching layer that fits musically. |
+
+</details>
+
+<details><summary><strong>Analysis</strong> (7)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `analyze` | Complete audio analysis |
+| `analyze_spectrum` | FFT spectrum analysis |
+| `analyze_rhythm` | Rhythm analysis |
 | `detect_tempo` | BPM detection |
-| `detect_key` | Musical key detection |
-| `validate_pattern_runtime` | Validate pattern with browser error checking |
+| `detect_key` | Key detection |
+| `validate_pattern_runtime` | Validate pattern with runtime error checking (monitors Strudel console for errors) |
+| `compare_patterns` | Compare two patterns from history showing differences |
 
-### UX & Browser Control (6 tools)
+</details>
+
+<details><summary><strong>Session</strong> (4)</summary>
+
 | Tool | Description |
 |------|-------------|
-| `compose` | One-shot pattern generation with auto-play |
-| `status` | Get current browser/playback state |
-| `diagnostics` | Detailed system diagnostics |
-| `show_browser` | Bring browser window to foreground |
-| `screenshot` | Capture browser screenshot |
-| `show_errors` | Display captured console errors |
+| `create_session` | Create a new isolated Strudel browser session. Sessions share one browser but have isolated contexts. |
+| `destroy_session` | Close and destroy a Strudel session, releasing its resources. |
+| `list_sessions` | List all active Strudel sessions with their metadata. |
+| `switch_session` | Change the default session used by other tools. |
 
-### Performance (2 tools)
+</details>
+
+<details><summary><strong>Export</strong> (2)</summary>
+
 | Tool | Description |
 |------|-------------|
-| `performance_report` | Timing metrics and bottleneck analysis |
-| `memory_usage` | Memory consumption statistics |
+| `screenshot` | Take a screenshot of the current Strudel editor state |
+| `export_midi` | Export current pattern to MIDI file. Parses note(), n(), and chord() functions. |
 
-### AI Feedback (1 tool)
-| Tool | Description | Options |
-|------|-------------|---------|
-| `get_pattern_feedback` | AI-powered creative feedback via Gemini | `includeAudio`: analyze audio (default: false), `style`: hint for context |
+</details>
 
-> **Note:** Requires `GEMINI_API_KEY` environment variable. Returns pattern complexity, estimated style, strengths, and suggestions.
+<details><summary><strong>Audio</strong> (3)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `start_audio_capture` | Start capturing audio from Strudel output. Audio must be playing for capture to work. |
+| `stop_audio_capture` | Stop audio capture and return the recorded audio as base64-encoded data. |
+| `capture_audio_sample` | Capture a fixed-duration audio sample from Strudel output. Audio must be playing. |
+
+</details>
+
+<details><summary><strong>Debug</strong> (5)</summary>
+
+| Tool | Description |
+|------|-------------|
+| `performance_report` | Get performance metrics and bottlenecks |
+| `memory_usage` | Get current memory usage statistics |
+| `show_browser` | Bring browser window to foreground for visual feedback |
+| `diagnostics` | Get detailed browser diagnostics including cache, errors, and performance |
+| `show_errors` | Display captured console errors and warnings from Strudel |
+
+</details>
+
+_Auto-generated from source. 65 tools registered._
+
+<!-- TOOLS:END -->
 
 ## 🎵 Usage Examples
 
