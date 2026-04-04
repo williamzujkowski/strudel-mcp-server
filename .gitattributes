@@ -1,0 +1,16 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Explicitly declare text files
+*.ts text
+*.js text
+*.json text
+*.md text
+*.yml text
+*.yaml text
+
+# Denote binary files
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
