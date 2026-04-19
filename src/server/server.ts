@@ -27,6 +27,7 @@ import { editorModule } from './tools/editor.js';
 import { transformModule } from './tools/transform.js';
 import { generateModule } from './tools/generate.js';
 import { sessionModule } from './tools/session.js';
+import { captureModule } from './tools/capture.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -179,48 +180,9 @@ export class StrudelMCPServer {
         }
       },
 
-      // Audio Capture Tools (#72)
-      {
-        name: 'start_audio_capture',
-        description: 'Start capturing audio from Strudel output. Audio must be playing for capture to work.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            format: { type: 'string', enum: ['webm', 'opus'], description: 'Audio format (default: webm)' },
-            maxDuration: { type: 'number', description: 'Maximum capture duration in milliseconds' }
-          }
-        }
-      },
-      {
-        name: 'stop_audio_capture',
-        description: 'Stop audio capture and return the recorded audio as base64-encoded data.',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'capture_audio_sample',
-        description: 'Capture a fixed-duration audio sample from Strudel output. Audio must be playing.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            duration: { type: 'number', description: 'Duration in milliseconds (default: 5000)' }
-          }
-        }
-      },
-
-      // MIDI Export Tools (#74)
-      {
-        name: 'export_midi',
-        description: 'Export current pattern to MIDI file. Parses note(), n(), and chord() functions.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            filename: { type: 'string', description: 'Output filename (optional, default: pattern.mid)' },
-            duration: { type: 'number', description: 'Export duration in bars (default: 4)' },
-            bpm: { type: 'number', description: 'Tempo in BPM (default: 120)' },
-            format: { type: 'string', enum: ['file', 'base64'], description: 'Output format: file or base64 (default: base64)' }
-          }
-        }
-      },
+      // start_audio_capture, stop_audio_capture, capture_audio_sample,
+      // export_midi — extracted to src/server/tools/capture.ts (#104)
+      ...captureModule.tools,
 
       // create_session, destroy_session, list_sessions, switch_session —
       // extracted to src/server/tools/session.ts (#104)
@@ -426,6 +388,8 @@ export class StrudelMCPServer {
       generator: this.generator,
       theory: this.theory,
       sessionManager: this.sessionManager,
+      midiExportService: this.midiExportService,
+      getAudioCaptureService: () => this.getAudioCaptureService(),
       history: {
         undoStack: this.undoStack,
         redoStack: this.redoStack,
@@ -463,6 +427,9 @@ export class StrudelMCPServer {
     }
     if (sessionModule.toolNames.has(name)) {
       return await sessionModule.execute(name, args, ctx);
+    }
+    if (captureModule.toolNames.has(name)) {
+      return await captureModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -665,19 +632,8 @@ export class StrudelMCPServer {
       case 'suggest_pattern_from_audio':
         return await this.suggestPatternFromAudio(args?.style, args?.role || 'complement');
 
-      // Audio Capture Tools (#72)
-      case 'start_audio_capture':
-        return await this.startAudioCapture(args?.format, args?.maxDuration);
-
-      case 'stop_audio_capture':
-        return await this.stopAudioCapture();
-
-      case 'capture_audio_sample':
-        return await this.captureAudioSampleTool(args?.duration);
-
-      // MIDI Export Tools (#74)
-      case 'export_midi':
-        return await this.exportMidi(args?.filename, args?.duration, args?.bpm, args?.format);
+      // start_audio_capture, stop_audio_capture, capture_audio_sample,
+      // export_midi — handled by captureModule above.
 
       // create_session, destroy_session, list_sessions, switch_session —
       // handled by sessionModule above.
@@ -1021,243 +977,19 @@ Example patterns:
     return this.controller.page;
   }
 
-  /**
-   * Lazily initializes and returns the AudioCaptureService
-   * Injects recorder into page on first use
-   */
+  // Audio capture + MIDI export logic moved to src/server/tools/capture.ts.
+  // Server still owns the AudioCaptureService lifecycle so tests can mock
+  // the class and the module fetches the (possibly mocked) instance via
+  // ctx.getAudioCaptureService() instead of caching its own.
   private async getAudioCaptureService(): Promise<AudioCaptureService> {
     if (!this.isInitialized || !this._page) {
       throw new Error('Browser not initialized. Run init first.');
     }
-
     if (!this.audioCaptureService) {
       this.audioCaptureService = new AudioCaptureService();
       await this.audioCaptureService.injectRecorder(this._page);
     }
-
     return this.audioCaptureService;
-  }
-
-  /**
-   * Starts audio capture from Strudel output
-   * @param format - Audio format ('webm' or 'opus')
-   * @param maxDuration - Maximum capture duration in ms (optional)
-   * @returns Status message
-   */
-  private async startAudioCapture(
-    format?: 'webm' | 'opus',
-    maxDuration?: number
-  ): Promise<{ success: boolean; message: string; format?: string }> {
-    try {
-      const captureService = await this.getAudioCaptureService();
-
-      if (captureService.isCapturing()) {
-        return {
-          success: false,
-          message: 'Audio capture already in progress. Stop it first.'
-        };
-      }
-
-      await captureService.startCapture(this._page!, { format });
-
-      return {
-        success: true,
-        message: 'Audio capture started. Use stop_audio_capture to get the recorded audio.',
-        format: format || 'webm'
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        success: false,
-        message: `Failed to start audio capture: ${message}`
-      };
-    }
-  }
-
-  /**
-   * Stops audio capture and returns base64-encoded audio data
-   * @returns Captured audio as base64 with metadata
-   */
-  private async stopAudioCapture(): Promise<{
-    success: boolean;
-    message: string;
-    audio?: string;
-    duration?: number;
-    format?: string;
-  }> {
-    try {
-      const captureService = await this.getAudioCaptureService();
-
-      if (!captureService.isCapturing()) {
-        return {
-          success: false,
-          message: 'No audio capture in progress. Start capture first.'
-        };
-      }
-
-      const result = await captureService.stopCapture(this._page!);
-
-      // Convert Blob to base64
-      const arrayBuffer = await result.blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
-
-      return {
-        success: true,
-        message: `Captured ${result.duration}ms of audio`,
-        audio: base64,
-        duration: result.duration,
-        format: result.format
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        success: false,
-        message: `Failed to stop audio capture: ${message}`
-      };
-    }
-  }
-
-  /**
-   * Captures a fixed-duration audio sample (MCP tool handler)
-   * @param duration - Duration in milliseconds (default: 5000)
-   * @returns Captured audio as base64 with metadata
-   */
-  private async captureAudioSampleTool(duration?: number): Promise<{
-    success: boolean;
-    message: string;
-    audio?: string;
-    duration?: number;
-    format?: string;
-  }> {
-    const durationMs = duration || 5000;
-
-    // Validate duration
-    if (durationMs < 100 || durationMs > 60000) {
-      return {
-        success: false,
-        message: 'Duration must be between 100ms and 60000ms (1 minute)'
-      };
-    }
-
-    try {
-      const captureService = await this.getAudioCaptureService();
-
-      if (captureService.isCapturing()) {
-        return {
-          success: false,
-          message: 'Audio capture already in progress. Stop it first.'
-        };
-      }
-
-      const result = await captureService.captureForDuration(this._page!, durationMs);
-
-      // Convert Blob to base64
-      const arrayBuffer = await result.blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
-
-      return {
-        success: true,
-        message: `Captured ${result.duration}ms audio sample`,
-        audio: base64,
-        duration: result.duration,
-        format: result.format
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        success: false,
-        message: `Failed to capture audio sample: ${message}`
-      };
-    }
-  }
-
-  /**
-   * Exports current pattern to MIDI format
-   * @param filename - Output filename (optional)
-   * @param bars - Duration in bars (default: 4)
-   * @param bpm - Tempo in BPM (default: 120)
-   * @param format - Output format: 'file' or 'base64' (default: 'base64')
-   * @returns Export result with MIDI data or file path
-   */
-  private async exportMidi(
-    filename?: string,
-    bars?: number,
-    bpm?: number,
-    format?: 'file' | 'base64'
-  ): Promise<{
-    success: boolean;
-    message: string;
-    output?: string;
-    noteCount?: number;
-    bars?: number;
-    bpm?: number;
-    error?: string;
-  }> {
-    // Validate inputs
-    if (bpm !== undefined) {
-      InputValidator.validateBPM(bpm);
-    }
-    if (bars !== undefined && (bars < 1 || bars > 128)) {
-      return {
-        success: false,
-        message: 'Bars must be between 1 and 128'
-      };
-    }
-
-    // Get current pattern
-    const pattern = await this.getCurrentPatternSafe();
-    if (!pattern || pattern.trim().length === 0) {
-      return {
-        success: false,
-        message: 'No pattern to export. Write a pattern first.'
-      };
-    }
-
-    const exportOptions = {
-      bpm: bpm || 120,
-      bars: bars || 4
-    };
-
-    // Export based on format
-    const outputFormat = format || 'base64';
-
-    if (outputFormat === 'file') {
-      const result = this.midiExportService.exportToFile(pattern, filename, exportOptions);
-      return {
-        success: result.success,
-        message: result.success
-          ? `Exported ${result.noteCount} notes to ${result.output}`
-          : result.error || 'Export failed',
-        output: result.output,
-        noteCount: result.noteCount,
-        bars: result.bars,
-        bpm: result.bpm,
-        error: result.error
-      };
-    } else {
-      const result = this.midiExportService.exportToBase64(pattern, exportOptions);
-      return {
-        success: result.success,
-        message: result.success
-          ? `Exported ${result.noteCount} notes as base64 MIDI data`
-          : result.error || 'Export failed',
-        output: result.output,
-        noteCount: result.noteCount,
-        bars: result.bars,
-        bpm: result.bpm,
-        error: result.error
-      };
-    }
   }
 
   /**

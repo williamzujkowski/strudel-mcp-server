@@ -1,0 +1,212 @@
+/**
+ * capture domain — audio recording and MIDI export.
+ *
+ * Owns (4 tools): start_audio_capture, stop_audio_capture,
+ * capture_audio_sample, export_midi.
+ *
+ * Per the #110 audit, the three audio_capture tools collapse into a
+ * single `audio_capture(action=start|stop|sample)` post-split.
+ * `export_midi` stays separate — MIDI is symbolic, audio is waveform.
+ *
+ * The AudioCaptureService is lazy-instantiated module-side: we need
+ * the current Playwright page for `injectRecorder()`, and that only
+ * exists after `init`. The singleton survives across tool calls.
+ */
+
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { ToolContext, ToolModule } from './types.js';
+import { InputValidator } from '../../utils/InputValidator.js';
+
+// AudioCaptureService lifecycle lives on the server; we fetch a shared
+// instance via ctx.getAudioCaptureService() so tests can mock the class
+// at module boundary without the extractor caching a stale instance.
+
+function blobToBase64(arrayBuffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+export const tools: Tool[] = [
+  {
+    name: 'start_audio_capture',
+    description: 'Start capturing audio from Strudel output. Audio must be playing for capture to work.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', enum: ['webm', 'opus'], description: 'Audio format (default: webm)' },
+        maxDuration: { type: 'number', description: 'Maximum capture duration in milliseconds' },
+      },
+    },
+  },
+  {
+    name: 'stop_audio_capture',
+    description: 'Stop audio capture and return the recorded audio as base64-encoded data.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'capture_audio_sample',
+    description: 'Capture a fixed-duration audio sample from Strudel output. Audio must be playing.',
+    inputSchema: {
+      type: 'object',
+      properties: { duration: { type: 'number', description: 'Duration in milliseconds (default: 5000)' } },
+    },
+  },
+  {
+    name: 'export_midi',
+    description: 'Export current pattern to MIDI file. Parses note(), n(), and chord() functions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filename: { type: 'string', description: 'Output filename (optional, default: pattern.mid)' },
+        duration: { type: 'number', description: 'Export duration in bars (default: 4)' },
+        bpm: { type: 'number', description: 'Tempo in BPM (default: 120)' },
+        format: { type: 'string', enum: ['file', 'base64'], description: 'Output format: file or base64 (default: base64)' },
+      },
+    },
+  },
+];
+
+export const toolNames = new Set(tools.map(t => t.name));
+
+export async function execute(name: string, args: any, ctx: ToolContext): Promise<unknown> {
+  switch (name) {
+    case 'start_audio_capture':
+      return await startAudioCapture(args?.format, args?.maxDuration, ctx);
+
+    case 'stop_audio_capture':
+      return await stopAudioCapture(ctx);
+
+    case 'capture_audio_sample':
+      return await captureAudioSample(args?.duration, ctx);
+
+    case 'export_midi':
+      return await exportMidi(args?.filename, args?.duration, args?.bpm, args?.format, ctx);
+
+    default:
+      throw new Error(`capture module does not handle tool: ${name}`);
+  }
+}
+
+async function startAudioCapture(
+  format: 'webm' | 'opus' | undefined,
+  _maxDuration: number | undefined,
+  ctx: ToolContext,
+): Promise<unknown> {
+  try {
+    const service = await ctx.getAudioCaptureService();
+    if (service.isCapturing()) {
+      return { success: false, message: 'Audio capture already in progress. Stop it first.' };
+    }
+    await service.startCapture(ctx.controller.page!, { format });
+    return {
+      success: true,
+      message: 'Audio capture started. Use stop_audio_capture to get the recorded audio.',
+      format: format || 'webm',
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Failed to start audio capture: ${message}` };
+  }
+}
+
+async function stopAudioCapture(ctx: ToolContext): Promise<unknown> {
+  try {
+    const service = await ctx.getAudioCaptureService();
+    if (!service.isCapturing()) {
+      return { success: false, message: 'No audio capture in progress. Start capture first.' };
+    }
+    const result = await service.stopCapture(ctx.controller.page!);
+    const buf = await result.blob.arrayBuffer();
+    return {
+      success: true,
+      message: `Captured ${result.duration}ms of audio`,
+      audio: blobToBase64(buf),
+      duration: result.duration,
+      format: result.format,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Failed to stop audio capture: ${message}` };
+  }
+}
+
+async function captureAudioSample(duration: number | undefined, ctx: ToolContext): Promise<unknown> {
+  const durationMs = duration || 5000;
+  if (durationMs < 100 || durationMs > 60000) {
+    return { success: false, message: 'Duration must be between 100ms and 60000ms (1 minute)' };
+  }
+
+  try {
+    const service = await ctx.getAudioCaptureService();
+    if (service.isCapturing()) {
+      return { success: false, message: 'Audio capture already in progress. Stop it first.' };
+    }
+    const result = await service.captureForDuration(ctx.controller.page!, durationMs);
+    const buf = await result.blob.arrayBuffer();
+    return {
+      success: true,
+      message: `Captured ${result.duration}ms audio sample`,
+      audio: blobToBase64(buf),
+      duration: result.duration,
+      format: result.format,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Failed to capture audio sample: ${message}` };
+  }
+}
+
+async function exportMidi(
+  filename: string | undefined,
+  bars: number | undefined,
+  bpm: number | undefined,
+  format: 'file' | 'base64' | undefined,
+  ctx: ToolContext,
+): Promise<unknown> {
+  if (bpm !== undefined) InputValidator.validateBPM(bpm);
+  if (bars !== undefined && (bars < 1 || bars > 128)) {
+    return { success: false, message: 'Bars must be between 1 and 128' };
+  }
+
+  const pattern = await ctx.getCurrentPatternSafe();
+  if (!pattern || pattern.trim().length === 0) {
+    return { success: false, message: 'No pattern to export. Write a pattern first.' };
+  }
+
+  const exportOptions = { bpm: bpm || 120, bars: bars || 4 };
+  const outputFormat = format || 'base64';
+
+  if (outputFormat === 'file') {
+    const result = ctx.midiExportService.exportToFile(pattern, filename, exportOptions);
+    return {
+      success: result.success,
+      message: result.success
+        ? `Exported ${result.noteCount} notes to ${result.output}`
+        : result.error || 'Export failed',
+      output: result.output,
+      noteCount: result.noteCount,
+      bars: result.bars,
+      bpm: result.bpm,
+      error: result.error,
+    };
+  }
+
+  const result = ctx.midiExportService.exportToBase64(pattern, exportOptions);
+  return {
+    success: result.success,
+    message: result.success
+      ? `Exported ${result.noteCount} notes as base64 MIDI data`
+      : result.error || 'Export failed',
+    output: result.output,
+    noteCount: result.noteCount,
+    bars: result.bars,
+    bpm: result.bpm,
+    error: result.error,
+  };
+}
+
+export const captureModule: ToolModule = { tools, toolNames, execute };
