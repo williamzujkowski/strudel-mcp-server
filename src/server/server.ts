@@ -20,6 +20,7 @@ import { InputValidator } from '../utils/InputValidator.js';
 import { StrudelEngine } from '../services/StrudelEngine.js';
 import { diagnosticsModule } from './tools/diagnostics.js';
 import { playbackModule } from './tools/playback.js';
+import { storageModule } from './tools/storage.js';
 import type { ToolContext } from './tools/types.js';
 
 const configPath = './config.json';
@@ -436,40 +437,8 @@ export class StrudelMCPServer {
           required: ['target_mood']
         }
       },
-      // Session Management (5)
-      {
-        name: 'save',
-        description: 'Save pattern with metadata',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Pattern name' },
-            tags: { type: 'array', items: { type: 'string' } }
-          },
-          required: ['name']
-        }
-      },
-      {
-        name: 'load',
-        description: 'Load saved pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Pattern name' }
-          },
-          required: ['name']
-        }
-      },
-      {
-        name: 'list',
-        description: 'List saved patterns',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            tag: { type: 'string', description: 'Filter by tag' }
-          }
-        }
-      },
+      // save, load, list — extracted to src/server/tools/storage.ts (#104)
+      ...storageModule.tools,
       {
         name: 'undo',
         description: 'Undo last action',
@@ -939,13 +908,19 @@ export class StrudelMCPServer {
     const ctx: ToolContext = {
       controller: this.controller,
       perfMonitor: this.perfMonitor,
+      store: this.store,
       isInitialized: () => this.isInitialized,
+      getCurrentPatternSafe: () => this.getCurrentPatternSafe(),
+      writePatternSafe: (p: string) => this.writePatternSafe(p),
     };
     if (diagnosticsModule.toolNames.has(name)) {
       return await diagnosticsModule.execute(name, args, ctx);
     }
     if (playbackModule.toolNames.has(name)) {
       return await playbackModule.execute(name, args, ctx);
+    }
+    if (storageModule.toolNames.has(name)) {
+      return await storageModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -1472,33 +1447,8 @@ export class StrudelMCPServer {
         };
 
       // Session Management
-      case 'save':
-        InputValidator.validateStringLength(args.name, 'name', 255, false);
-        const toSave = await this.getCurrentPatternSafe();
-        if (!toSave) {
-          return 'No pattern to save';
-        }
-        await this.store.save(args.name, toSave, args.tags || []);
-        return `Pattern saved as "${args.name}"`;
-      
-      case 'load':
-        InputValidator.validateStringLength(args.name, 'name', 255, false);
-        const saved = await this.store.load(args.name);
-        if (saved) {
-          await this.writePatternSafe(saved.content);
-          return `Loaded pattern "${args.name}"`;
-        }
-        return `Pattern "${args.name}" not found`;
-      
-      case 'list':
-        if (args?.tag) {
-          InputValidator.validateStringLength(args.tag, 'tag', 100, false);
-        }
-        const patterns = await this.store.list(args?.tag);
-        return patterns.map(p =>
-          `• ${p.name} [${p.tags.join(', ')}] - ${p.timestamp}`
-        ).join('\n') || 'No patterns found';
-      
+      // save, load, list — handled by storageModule above.
+
       case 'undo':
         if (!this.isInitialized) {
           return 'Browser not initialized. Run init first.';

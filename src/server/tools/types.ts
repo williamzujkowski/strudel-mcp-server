@@ -9,16 +9,22 @@
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { StrudelController } from '../../StrudelController.js';
+import type { PatternStore } from '../../PatternStore.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
 /**
  * Runtime context passed into every tool executor. Getters rather than
  * values so that mutable server state (isInitialized flag) stays live.
+ * Helpers like getCurrentPatternSafe/writePatternSafe wrap server-side
+ * state (e.g. the generated-pattern cache used before init).
  */
 export interface ToolContext {
   controller: StrudelController;
   perfMonitor: PerformanceMonitor;
+  store: PatternStore;
   isInitialized(): boolean;
+  getCurrentPatternSafe(): Promise<string>;
+  writePatternSafe(pattern: string): Promise<string>;
 }
 
 /**
