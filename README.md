@@ -185,9 +185,9 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `clear` | Clear the editor |
 | `set_tempo` | Set BPM |
 | `status` | Get current browser and playback status (quick state check) |
+| `clear` | Clear the editor |
 | `play` | Start playing pattern |
 | `pause` | Pause playback |
 | `stop` | Stop playback |
