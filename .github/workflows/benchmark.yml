@@ -14,7 +14,7 @@ on:
         description: 'Fail if p95 > 1.5× target'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -47,7 +47,7 @@ jobs:
         id: bench
         env:
           RUNS: ${{ github.event.inputs.runs || '50' }}
-          GATE: ${{ github.event.inputs.gate || 'false' }}
+          GATE: ${{ github.event.inputs.gate || 'true' }}
         run: |
           mkdir -p benchmarks/results
           ARGS="--runs=${RUNS}"
