@@ -431,6 +431,30 @@ describe('GeminiService', () => {
       expect(feedback.mood).toBe('unknown');
       expect(feedback.confidence).toBe(0);
     });
+
+    it('should propagate network timeout errors from the Gemini SDK', async () => {
+      // Simulate fetch-level timeout that the Google SDK surfaces as a rejected promise
+      const timeoutErr = Object.assign(new Error('fetch timeout after 30000ms'), { name: 'AbortError' });
+      mockGenerateContent.mockRejectedValue(timeoutErr);
+
+      await expect(service.analyzeAudio(mockAudioBlob)).rejects.toThrow(/timeout|fetch/i);
+    });
+
+    it('should propagate rate-limit (429) errors from the Gemini SDK', async () => {
+      // Google SDK surfaces 429 responses as errors with the status attached
+      const rateErr = Object.assign(new Error('Quota exceeded for this project'), {
+        status: 429,
+        statusText: 'Too Many Requests',
+      });
+      mockGenerateContent.mockRejectedValue(rateErr);
+
+      await expect(service.analyzeAudio(mockAudioBlob)).rejects.toThrow(/quota|429|too many/i);
+    });
+
+    it('should reject audio data that is empty or zero-size', async () => {
+      const emptyBlob = new Blob([], { type: 'audio/webm' });
+      await expect(service.analyzeAudio(emptyBlob)).rejects.toThrow(/valid audio data/i);
+    });
   });
 
   describe('suggestVariations', () => {
