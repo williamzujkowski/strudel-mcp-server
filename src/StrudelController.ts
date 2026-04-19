@@ -51,6 +51,7 @@ export class StrudelController {
       headless: this.isHeadless,
       args: [
         '--use-fake-ui-for-media-stream',
+        '--autoplay-policy=no-user-gesture-required',
         '--disable-dev-shm-usage',
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -240,10 +241,17 @@ export class StrudelController {
   async play(): Promise<string> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
-    // Always use keyboard shortcut for speed
-    await this._page.keyboard.press('ControlOrMeta+Enter');
+    // Click Strudel's play button — this establishes the user gesture that
+    // the AudioContext needs to start. Ctrl+Enter alone only evaluates the
+    // pattern ("warm" state) but does not resume audio on first invocation.
+    // Fallback to the keyboard shortcut if the button isn't found.
+    try {
+      const playButton = this._page.locator('button[title="play"]').first();
+      await playButton.click({ timeout: 3000 });
+    } catch {
+      await this._page.keyboard.press('ControlOrMeta+Enter');
+    }
 
-    // Reduced wait time
     await this._page.waitForTimeout(100);
 
     this.isPlaying = true;
@@ -258,8 +266,15 @@ export class StrudelController {
   async stop(): Promise<string> {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
-    // Always use keyboard shortcut for speed
-    await this._page.keyboard.press('ControlOrMeta+Period');
+    // Strudel's play button toggles: clicking it while playing stops audio.
+    // Ctrl+Period is the documented keyboard shortcut but is unreliable when
+    // the editor doesn't have focus, so click the button first and fall back.
+    try {
+      const playButton = this._page.locator('button[title="play"]').first();
+      await playButton.click({ timeout: 2000 });
+    } catch {
+      await this._page.keyboard.press('ControlOrMeta+Period');
+    }
 
     this.isPlaying = false;
     return 'Stopped';
