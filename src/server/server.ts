@@ -966,6 +966,35 @@ export class StrudelMCPServer {
         const humanized = toHumanize + `.nudge(rand.range(-${args.amount || 0.01}, ${args.amount || 0.01}))`;
         await this.writePatternSafe(humanized);
         return 'Added human timing';
+
+      case 'quantize':
+        InputValidator.validateStringLength(args.grid, 'grid', 50, false);
+        const toQuantize = await this.getCurrentPatternSafe();
+        const quantized = toQuantize + `.struct("${args.grid}")`;
+        await this.writePatternSafe(quantized);
+        return `Quantized to ${args.grid} grid`;
+
+      case 'apply_scale':
+        InputValidator.validateStringLength(args.scale, 'scale', 50, false);
+        InputValidator.validateRootNote(args.root);
+        const toScale = await this.getCurrentPatternSafe();
+        const scaled = toScale + `.scale("${args.root}:${args.scale}")`;
+        await this.writePatternSafe(scaled);
+        return `Applied ${args.root} ${args.scale} scale`;
+
+      case 'remove_effect': {
+        InputValidator.validateStringLength(args.effect, 'effect', 100, false);
+        const currentForRemove = await this.getCurrentPatternSafe();
+        // Match `.effect(...)` with balanced or greedy args; greedy works for
+        // the simple flat chains this tool produces.
+        const effectRegex = new RegExp(`\\.${args.effect}\\([^)]*\\)`, 'g');
+        const stripped = currentForRemove.replace(effectRegex, '');
+        if (stripped === currentForRemove) {
+          return `No ${args.effect} effect found to remove`;
+        }
+        await this.writePatternSafe(stripped);
+        return `Removed ${args.effect} effect`;
+      }
       
       case 'generate_variation':
         const toVary = await this.getCurrentPatternSafe();
