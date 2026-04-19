@@ -153,7 +153,7 @@ Adding context guidelines to CLAUDE.md after line 70.
 ## Project Purpose
 This is an **open source, actively developed** MCP server enabling AI agents to generate music via Strudel.cc using browser automation.
 
-**Current State:** Functional but experimental. Known issues exist (see GitHub Issues). Contributions welcome.
+**Current State:** Beta. 1470 tests pass, 77% statement coverage, CI hardened (Scorecard, SHA-pinned actions, CODEOWNERS, Dependabot). Tool schemas are stable within minor versions. Known coverage gaps: `AudioCaptureService` 33%, `AudioAnalyzer` branch 48%. See GitHub Issues for the roadmap. Contributions welcome.
 
 ## GitHub Issues Workflow
 

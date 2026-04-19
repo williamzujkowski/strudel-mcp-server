@@ -2,7 +2,7 @@
 
 > 🎵 Open source MCP server for AI-powered music generation with Strudel.cc
 >
-> **Status:** Actively developed | Experimental | Contributions welcome
+> **Status:** Beta | 77% test coverage | Published to npm | Actively developed
 
 <a href="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server/badge" alt="Strudel Server MCP server" />
@@ -14,9 +14,15 @@
 [![Tools](https://img.shields.io/badge/tools-66-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-An experimental Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
+A Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
 
-**Current State:** Functional but under active development. Core features work reliably, but expect rough edges. See [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for known limitations.
+**Current State: Beta.** The core workflow (init → generate → write → play → analyze) works reliably with real audio output and has 1470 passing tests covering 77% of statements. CI is hardened with OpenSSF Scorecard, SHA-pinned actions, CODEOWNERS, and Dependabot. Known coverage gaps exist (notably `AudioCaptureService` at 33% and `AudioAnalyzer` branch coverage at 48%) — see [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for the full list.
+
+**What "Beta" means here:**
+- Tool schemas are stable within minor versions; breaking changes require a major bump
+- Single-browser-session limitation (multi-session tracked in [#108](https://github.com/williamzujkowski/strudel-mcp-server/issues/108))
+- Upstream `@strudel/*` dependencies pinned to known-good versions; Dependabot bumps gated on CI
+- Expect hands-on iteration for non-standard patterns — report rough edges, they get fixed
 
 ## Table of Contents
 

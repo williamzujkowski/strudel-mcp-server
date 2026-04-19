@@ -13,7 +13,26 @@ All notable changes to the Strudel MCP Server will be documented in this file.
 
 ### Fixed
 
+- **fix: play tool now actually starts audio (#119)** — `play` was only
+  putting Strudel in "warm" state (code evaluated, audio not started)
+  because `Ctrl+Enter` alone doesn't resume the AudioContext on first
+  invocation. `play()` now clicks the play button directly to establish
+  the user gesture; `stop()` does the same. Added
+  `--autoplay-policy=no-user-gesture-required` Chromium flag as insurance.
+- **fix: pin @strudel/\* to 1.2.5** — `@strudel/core@1.2.6` imports
+  `SalatRepl` from `@kabelsalat/web`, which does not export that symbol.
+  Every CI run since the dependabot bump failed at the `validate` step.
+  Pinned `core`, `mini`, `tonal`, `transpiler` to `1.2.5` (last clean
+  release). Revisit when upstream ships a working 1.2.7+.
 - ESLint config, test file names, Node version docs, CI improvements
+
+### Changed
+
+- **docs: maturity statement bumped from "experimental" to "beta" (#111)**.
+  77% statement coverage, 1470 passing tests, hardened CI, real audio
+  output verified. Stable tool schemas within minor versions. Known
+  coverage gaps (`AudioCaptureService` 33%, `AudioAnalyzer` branch 48%)
+  tracked as open issues.
 
 ### Refactored
 
