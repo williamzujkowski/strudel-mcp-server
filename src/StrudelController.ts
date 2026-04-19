@@ -9,6 +9,7 @@ import {
   AudioAnalysisResult,
   KeyAnalysis,
   TempoAnalysis,
+  RhythmAnalysis,
   PatternStats,
   BrowserDiagnostics
 } from './types/AudioAnalysis.js';
@@ -345,6 +346,17 @@ export class StrudelController {
     if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
 
     return await this.analyzer.detectTempo(this._page);
+  }
+
+  /**
+   * Analyzes the rhythm pattern of the currently playing audio
+   * @returns Rhythm analysis including density, complexity, syncopation, regularity
+   * @throws {Error} When not initialized
+   */
+  async analyzeRhythm(): Promise<RhythmAnalysis> {
+    if (!this._page) throw new Error('Browser not initialized. Run init tool first.');
+
+    return await this.analyzer.analyzeRhythm(this._page);
   }
 
   /**

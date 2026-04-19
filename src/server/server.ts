@@ -1236,12 +1236,7 @@ export class StrudelMCPServer {
         if (!this.isInitialized) {
           return 'Browser not initialized. Run init first.';
         }
-        const analysis = await this.controller.analyzeAudio();
-        return {
-          isPlaying: analysis.features?.isPlaying,
-          tempo: 'Analysis pending implementation',
-          pattern: 'Rhythm pattern analysis'
-        };
+        return await this.controller.analyzeRhythm();
       
       case 'detect_tempo':
         if (!this.isInitialized) {

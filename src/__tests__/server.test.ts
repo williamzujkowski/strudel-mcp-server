@@ -66,6 +66,14 @@ describe('StrudelMCPServer', () => {
         confidence: 0.85,
         method: 'autocorrelation'
       }),
+      analyzeRhythm: jest.fn().mockResolvedValue({
+        pattern: 'four-on-the-floor',
+        complexity: 0.3,
+        density: 4,
+        syncopation: 0.1,
+        onsets: [0, 0.25, 0.5, 0.75],
+        isRegular: true
+      }),
       analyzer: {
         detectTempo: jest.fn().mockResolvedValue({
           bpm: 120,
@@ -779,8 +787,11 @@ describe('StrudelMCPServer', () => {
       test('should return rhythm analysis', async () => {
         const result = await (server as any).executeTool('analyze_rhythm', {});
 
-        expect(result).toHaveProperty('isPlaying');
-        expect(result).toHaveProperty('tempo');
+        expect(result).toHaveProperty('complexity');
+        expect(result).toHaveProperty('density');
+        expect(result).toHaveProperty('syncopation');
+        expect(result).toHaveProperty('onsets');
+        expect(result).toHaveProperty('isRegular');
       });
     });
 
