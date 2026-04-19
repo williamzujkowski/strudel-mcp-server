@@ -297,8 +297,8 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `screenshot` | Take a screenshot of the current Strudel editor state |
 | `export_midi` | Export current pattern to MIDI file. Parses note(), n(), and chord() functions. |
+| `screenshot` | Take a screenshot of the current Strudel editor state |
 
 </details>
 
@@ -316,9 +316,9 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
+| `show_browser` | Bring browser window to foreground for visual feedback |
 | `performance_report` | Get performance metrics and bottlenecks |
 | `memory_usage` | Get current memory usage statistics |
-| `show_browser` | Bring browser window to foreground for visual feedback |
 | `diagnostics` | Get detailed browser diagnostics including cache, errors, and performance |
 | `show_errors` | Display captured console errors and warnings from Strudel |
 

@@ -12,11 +12,12 @@
 
 /* eslint-disable no-console */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
 const SERVER_PATH = join(ROOT, 'src/server/server.ts');
+const TOOLS_DIR = join(ROOT, 'src/server/tools');
 const README_PATH = join(ROOT, 'README.md');
 
 const START_MARKER = '<!-- TOOLS:START -->';
@@ -27,8 +28,8 @@ interface Tool {
   description: string;
 }
 
-function extractTools(): Tool[] {
-  const content = readFileSync(SERVER_PATH, 'utf-8');
+function extractToolsFromFile(path: string): Tool[] {
+  const content = readFileSync(path, 'utf-8');
   const tools: Tool[] = [];
 
   // Match tool definitions: { name: 'tool_name', description: 'desc' }
@@ -39,6 +40,33 @@ function extractTools(): Tool[] {
     if (name !== '' && name !== 'strudel-mcp-enhanced') {
       tools.push({ name, description: desc });
     }
+  }
+
+  return tools;
+}
+
+function extractTools(): Tool[] {
+  // Main server.ts still holds most tool defs; extracted per-domain modules
+  // live under src/server/tools/ (see #104).
+  const seen = new Set<string>();
+  const tools: Tool[] = [];
+
+  const pushUnique = (t: Tool) => {
+    if (!seen.has(t.name)) {
+      seen.add(t.name);
+      tools.push(t);
+    }
+  };
+
+  for (const t of extractToolsFromFile(SERVER_PATH)) pushUnique(t);
+
+  try {
+    for (const entry of readdirSync(TOOLS_DIR)) {
+      if (!entry.endsWith('.ts') || entry === 'types.ts') continue;
+      for (const t of extractToolsFromFile(join(TOOLS_DIR, entry))) pushUnique(t);
+    }
+  } catch {
+    // tools/ dir may not exist yet mid-split
   }
 
   return tools;
