@@ -22,6 +22,7 @@ import { diagnosticsModule } from './tools/diagnostics.js';
 import { playbackModule } from './tools/playback.js';
 import { storageModule } from './tools/storage.js';
 import { historyModule } from './tools/history.js';
+import { analysisModule } from './tools/analysis.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -305,44 +306,8 @@ export class StrudelMCPServer {
         }
       },
 
-      // Audio Analysis (5)
-      {
-        name: 'analyze',
-        description: 'Complete audio analysis',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'analyze_spectrum',
-        description: 'FFT spectrum analysis',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'analyze_rhythm',
-        description: 'Rhythm analysis',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'detect_tempo',
-        description: 'BPM detection',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'detect_key',
-        description: 'Key detection',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'validate_pattern_runtime',
-        description: 'Validate pattern with runtime error checking (monitors Strudel console for errors)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            pattern: { type: 'string', description: 'Pattern code to validate' },
-            waitMs: { type: 'number', description: 'How long to wait for errors (default 500ms)' }
-          },
-          required: ['pattern']
-        }
-      },
+      // Audio Analysis + runtime validation — extracted to src/server/tools/analysis.ts (#104)
+      ...analysisModule.tools,
 
       // Effects & Processing (5)
       {
@@ -882,6 +847,9 @@ export class StrudelMCPServer {
     if (historyModule.toolNames.has(name)) {
       return await historyModule.execute(name, args, ctx);
     }
+    if (analysisModule.toolNames.has(name)) {
+      return await analysisModule.execute(name, args, ctx);
+    }
 
     switch (name) {
       // Core Control
@@ -1139,112 +1107,8 @@ export class StrudelMCPServer {
         await this.writePatternSafe(withTempo);
         return `Set tempo to ${args.bpm} BPM`;
       
-      // Audio Analysis - Requires browser
-      case 'analyze':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        return await this.controller.analyzeAudio();
-      
-      case 'analyze_spectrum':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        const spectrum = await this.controller.analyzeAudio();
-        return spectrum.features || spectrum;
-      
-      case 'analyze_rhythm':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        return await this.controller.analyzeRhythm();
-      
-      case 'detect_tempo':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        try {
-          const tempoAnalysis = await this.controller.detectTempo();
-          if (!tempoAnalysis || tempoAnalysis.bpm === 0) {
-            return {
-              bpm: 0,
-              confidence: 0,
-              message: 'No tempo detected. Ensure audio is playing and has a clear rhythmic pattern.'
-            };
-          }
-          return {
-            bpm: tempoAnalysis.bpm,
-            confidence: Math.round(tempoAnalysis.confidence * 100) / 100,
-            method: tempoAnalysis.method,
-            message: `Detected ${tempoAnalysis.bpm} BPM with ${Math.round(tempoAnalysis.confidence * 100)}% confidence`
-          };
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          return {
-            bpm: 0,
-            confidence: 0,
-            error: message || 'Tempo detection failed'
-          };
-        }
-      
-      case 'detect_key':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        try {
-          const keyAnalysis = await this.controller.detectKey();
-          if (!keyAnalysis || keyAnalysis.confidence < 0.1) {
-            return {
-              key: 'Unknown',
-              scale: 'unknown',
-              confidence: 0,
-              message: 'No clear key detected. Ensure audio is playing and has tonal content.'
-            };
-          }
-
-          const result: any = {
-            key: keyAnalysis.key,
-            scale: keyAnalysis.scale,
-            confidence: Math.round(keyAnalysis.confidence * 100) / 100,
-            message: `Detected ${keyAnalysis.key} ${keyAnalysis.scale} with ${Math.round(keyAnalysis.confidence * 100)}% confidence`
-          };
-
-          // Include alternatives if available and confidence is moderate
-          if (keyAnalysis.alternatives && keyAnalysis.alternatives.length > 0) {
-            result.alternatives = keyAnalysis.alternatives.map((alt: any) => ({
-              key: alt.key,
-              scale: alt.scale,
-              confidence: Math.round(alt.confidence * 100) / 100
-            }));
-          }
-
-          return result;
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          return {
-            key: 'Unknown',
-            scale: 'unknown',
-            confidence: 0,
-            error: message || 'Key detection failed'
-          };
-        }
-
-      case 'validate_pattern_runtime':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, false);
-        const validation = await this.controller.validatePatternRuntime(
-          args.pattern,
-          args.waitMs || 500
-        );
-
-        if (validation.valid) {
-          return `✅ Pattern valid - no runtime errors detected`;
-        } else {
-          return `❌ Pattern has runtime errors:\n${validation.errors.join('\n')}\n` +
-                 (validation.warnings.length > 0 ? `\nWarnings:\n${validation.warnings.join('\n')}` : '');
-        }
+      // analyze, analyze_spectrum, analyze_rhythm, detect_tempo, detect_key,
+      // validate_pattern_runtime — handled by analysisModule above.
 
       // Local Pattern Tools (#83) - No browser required
       case 'validate_pattern_local':
