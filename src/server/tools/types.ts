@@ -10,6 +10,7 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { StrudelController } from '../../StrudelController.js';
 import type { PatternStore } from '../../PatternStore.js';
+import type { Logger } from '../../utils/Logger.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
 /** History entry with metadata for pattern browsing (used by history.ts). */
@@ -43,6 +44,7 @@ export interface ToolContext {
   perfMonitor: PerformanceMonitor;
   store: PatternStore;
   history: HistoryState;
+  logger: Logger;
   isInitialized(): boolean;
   getCurrentPatternSafe(): Promise<string>;
   writePatternSafe(pattern: string): Promise<string>;

@@ -23,6 +23,7 @@ import { playbackModule } from './tools/playback.js';
 import { storageModule } from './tools/storage.js';
 import { historyModule } from './tools/history.js';
 import { analysisModule } from './tools/analysis.js';
+import { editorModule } from './tools/editor.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -134,66 +135,11 @@ export class StrudelMCPServer {
         description: 'Initialize Strudel in browser',
         inputSchema: { type: 'object', properties: {} }
       },
-      {
-        name: 'write',
-        description: 'Write pattern to editor with optional auto-play and validation',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            pattern: { type: 'string', description: 'Pattern code' },
-            auto_play: { type: 'boolean', description: 'Start playback immediately after writing (default: false)' },
-            validate: { type: 'boolean', description: 'Validate pattern before writing (default: true)' }
-          },
-          required: ['pattern']
-        }
-      },
-      {
-        name: 'append',
-        description: 'Append code to current pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            code: { type: 'string', description: 'Code to append' }
-          },
-          required: ['code']
-        }
-      },
-      {
-        name: 'insert',
-        description: 'Insert code at specific line',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            position: { type: 'number', description: 'Line number' },
-            code: { type: 'string', description: 'Code to insert' }
-          },
-          required: ['position', 'code']
-        }
-      },
-      {
-        name: 'replace',
-        description: 'Replace pattern section',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            search: { type: 'string', description: 'Text to replace' },
-            replace: { type: 'string', description: 'Replacement text' }
-          },
-          required: ['search', 'replace']
-        }
-      },
+      // write, append, insert, replace, clear, get_pattern —
+      // extracted to src/server/tools/editor.ts (#104)
+      ...editorModule.tools,
       // play, pause, stop — extracted to src/server/tools/playback.ts (#104)
       ...playbackModule.tools,
-      {
-        name: 'clear',
-        description: 'Clear the editor',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'get_pattern',
-        description: 'Get current pattern code',
-        inputSchema: { type: 'object', properties: {} }
-      },
 
       // Pattern Manipulation (10)
       {
@@ -831,6 +777,7 @@ export class StrudelMCPServer {
         historyStack: this.historyStack,
         maxHistory: this.MAX_HISTORY,
       },
+      logger: this.logger,
       isInitialized: () => this.isInitialized,
       getCurrentPatternSafe: () => this.getCurrentPatternSafe(),
       writePatternSafe: (p: string) => this.writePatternSafe(p),
@@ -850,6 +797,9 @@ export class StrudelMCPServer {
     if (analysisModule.toolNames.has(name)) {
       return await analysisModule.execute(name, args, ctx);
     }
+    if (editorModule.toolNames.has(name)) {
+      return await editorModule.execute(name, args, ctx);
+    }
 
     switch (name) {
       // Core Control
@@ -867,67 +817,10 @@ export class StrudelMCPServer {
         }
         return initResult;
       
-      case 'write':
-        InputValidator.validateStringLength(args.pattern, 'pattern', 10000, true);
-
-        // Validate pattern if requested (default: true) - Issue #40
-        if (args.validate !== false && this.isInitialized && typeof this.controller.validatePattern === 'function') {
-          try {
-            const validation = await this.controller.validatePattern(args.pattern);
-            if (validation && !validation.valid) {
-              return {
-                success: false,
-                errors: validation.errors,
-                warnings: validation.warnings,
-                suggestions: validation.suggestions,
-                message: `Pattern validation failed: ${validation.errors.join('; ')}`
-              };
-            }
-          } catch (e) {
-            // Validation failed, but we can still try to write
-            this.logger.warn('Pattern validation threw error, continuing with write');
-          }
-        }
-
-        const writeResult = await this.writePatternSafe(args.pattern);
-
-        // Auto-play if requested - Issue #38
-        if (args.auto_play && this.isInitialized) {
-          await this.controller.play();
-          return `${writeResult}. Playing.`;
-        }
-
-        return writeResult;
-
-      case 'append':
-        InputValidator.validateStringLength(args.code, 'code', 10000, true);
-        const current = await this.getCurrentPatternSafe();
-        return await this.writePatternSafe(current + '\n' + args.code);
-
-      case 'insert':
-        InputValidator.validatePositiveInteger(args.position, 'position');
-        InputValidator.validateStringLength(args.code, 'code', 10000, true);
-        const lines = (await this.getCurrentPatternSafe()).split('\n');
-        lines.splice(args.position, 0, args.code);
-        return await this.writePatternSafe(lines.join('\n'));
-
-      case 'replace':
-        InputValidator.validateStringLength(args.search, 'search', 1000, true);
-        InputValidator.validateStringLength(args.replace, 'replace', 10000, true);
-        const pattern = await this.getCurrentPatternSafe();
-        // Escape $ in replacement to prevent special sequence injection ($&, $1, $', etc.)
-        const safeReplacement = args.replace.replace(/\$/g, '$$$$');
-        const replaced = pattern.replace(args.search, safeReplacement);
-        return await this.writePatternSafe(replaced);
-      
+      // write, append, insert, replace, clear, get_pattern
+      //   — handled by editorModule above.
       // play, pause, stop — handled by playbackModule above.
 
-      case 'clear':
-        return await this.writePatternSafe('');
-      
-      case 'get_pattern':
-        return await this.getCurrentPatternSafe();
-      
       // Pattern Generation - These can work without browser
       case 'generate_pattern':
         InputValidator.validateStringLength(args.style, 'style', 100, false);
