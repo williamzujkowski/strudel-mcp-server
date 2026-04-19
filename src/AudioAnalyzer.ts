@@ -39,6 +39,7 @@ export class AudioAnalyzer {
    * @param page - Playwright page instance to inject into
    */
   async inject(page: Page) {
+    /* istanbul ignore next -- browser-injected IIFE, covered by integration tests */
     await page.evaluate(() => {
       (window as any).strudelAudioAnalyzer = {
         analyser: null as AnalyserNode | null,
@@ -183,7 +184,7 @@ export class AudioAnalyzer {
       return this._analysisCache;
     }
 
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(/* istanbul ignore next */ () => {
       const analyzer = (window as any).strudelAudioAnalyzer;
       if (!analyzer) {
         return {
@@ -394,7 +395,7 @@ export class AudioAnalyzer {
    */
   async detectTempo(page: Page): Promise<TempoAnalysis | null> {
     // Get analyzer object from browser
-    const analyzer = await page.evaluate(() => {
+    const analyzer = await page.evaluate(/* istanbul ignore next */ () => {
       return (window as any).strudelAudioAnalyzer;
     });
 
@@ -486,7 +487,7 @@ export class AudioAnalyzer {
    */
   async detectKey(page: Page): Promise<KeyAnalysis | null> {
     // Get analyzer object from browser
-    const analyzer = await page.evaluate(() => {
+    const analyzer = await page.evaluate(/* istanbul ignore next */ () => {
       return (window as any).strudelAudioAnalyzer;
     });
 
@@ -608,7 +609,7 @@ export class AudioAnalyzer {
    */
   async analyzeRhythm(page: Page): Promise<RhythmAnalysis> {
     // Get analyzer object from browser
-    const analyzer = await page.evaluate(() => {
+    const analyzer = await page.evaluate(/* istanbul ignore next */ () => {
       return (window as any).strudelAudioAnalyzer;
     });
 
