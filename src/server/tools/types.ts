@@ -12,6 +12,26 @@ import type { StrudelController } from '../../StrudelController.js';
 import type { PatternStore } from '../../PatternStore.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
+/** History entry with metadata for pattern browsing (used by history.ts). */
+export interface HistoryEntry {
+  id: number;
+  pattern: string;
+  timestamp: Date;
+  action: string;
+}
+
+/**
+ * Undo / redo / history state — arrays are passed by reference so the
+ * outer server can still push onto them during write/append/etc., and
+ * the history module can pop/shift them during undo/redo.
+ */
+export interface HistoryState {
+  undoStack: string[];
+  redoStack: string[];
+  historyStack: HistoryEntry[];
+  readonly maxHistory: number;
+}
+
 /**
  * Runtime context passed into every tool executor. Getters rather than
  * values so that mutable server state (isInitialized flag) stays live.
@@ -22,6 +42,7 @@ export interface ToolContext {
   controller: StrudelController;
   perfMonitor: PerformanceMonitor;
   store: PatternStore;
+  history: HistoryState;
   isInitialized(): boolean;
   getCurrentPatternSafe(): Promise<string>;
   writePatternSafe(pattern: string): Promise<string>;

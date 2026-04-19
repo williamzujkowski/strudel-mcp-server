@@ -21,20 +21,13 @@ import { StrudelEngine } from '../services/StrudelEngine.js';
 import { diagnosticsModule } from './tools/diagnostics.js';
 import { playbackModule } from './tools/playback.js';
 import { storageModule } from './tools/storage.js';
-import type { ToolContext } from './tools/types.js';
+import { historyModule } from './tools/history.js';
+import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
 const config = existsSync(configPath) 
   ? JSON.parse(readFileSync(configPath, 'utf-8'))
   : { headless: false };
-
-/** History entry with metadata for pattern browsing */
-interface HistoryEntry {
-  id: number;
-  pattern: string;
-  timestamp: Date;
-  action: string;
-}
 
 /** Energy level configuration for set_energy tool (#81) */
 interface EnergyConfig {
@@ -439,51 +432,9 @@ export class StrudelMCPServer {
       },
       // save, load, list — extracted to src/server/tools/storage.ts (#104)
       ...storageModule.tools,
-      {
-        name: 'undo',
-        description: 'Undo last action',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'redo',
-        description: 'Redo action',
-        inputSchema: { type: 'object', properties: {} }
-      },
-
-      // Pattern History Tools (#41)
-      {
-        name: 'list_history',
-        description: 'List recent pattern history with timestamps and previews',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            limit: { type: 'number', description: 'Maximum entries to return (default: 10)' }
-          }
-        }
-      },
-      {
-        name: 'restore_history',
-        description: 'Restore a previous pattern from history by ID',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', description: 'History entry ID to restore' }
-          },
-          required: ['id']
-        }
-      },
-      {
-        name: 'compare_patterns',
-        description: 'Compare two patterns from history showing differences',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            id1: { type: 'number', description: 'First pattern ID' },
-            id2: { type: 'number', description: 'Second pattern ID (default: current pattern)' }
-          },
-          required: ['id1']
-        }
-      },
+      // undo, redo, list_history, restore_history, compare_patterns
+      // — extracted to src/server/tools/history.ts (#104)
+      ...historyModule.tools,
 
       // Additional Music Theory Tools (5)
       {
@@ -909,6 +860,12 @@ export class StrudelMCPServer {
       controller: this.controller,
       perfMonitor: this.perfMonitor,
       store: this.store,
+      history: {
+        undoStack: this.undoStack,
+        redoStack: this.redoStack,
+        historyStack: this.historyStack,
+        maxHistory: this.MAX_HISTORY,
+      },
       isInitialized: () => this.isInitialized,
       getCurrentPatternSafe: () => this.getCurrentPatternSafe(),
       writePatternSafe: (p: string) => this.writePatternSafe(p),
@@ -921,6 +878,9 @@ export class StrudelMCPServer {
     }
     if (storageModule.toolNames.has(name)) {
       return await storageModule.execute(name, args, ctx);
+    }
+    if (historyModule.toolNames.has(name)) {
+      return await historyModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -1448,110 +1408,8 @@ export class StrudelMCPServer {
 
       // Session Management
       // save, load, list — handled by storageModule above.
-
-      case 'undo':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        if (this.undoStack.length > 0) {
-          const currentUndo = await this.controller.getCurrentPattern();
-          this.redoStack.push(currentUndo);
-          // Enforce bounds to prevent memory leaks
-          if (this.redoStack.length > this.MAX_HISTORY) {
-            this.redoStack.shift();
-          }
-          const previous = this.undoStack.pop()!;
-          await this.controller.writePattern(previous);
-          return 'Undone';
-        }
-        return 'Nothing to undo';
-
-      case 'redo':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        if (this.redoStack.length > 0) {
-          const currentRedo = await this.controller.getCurrentPattern();
-          this.undoStack.push(currentRedo);
-          // Enforce bounds to prevent memory leaks
-          if (this.undoStack.length > this.MAX_HISTORY) {
-            this.undoStack.shift();
-          }
-          const next = this.redoStack.pop()!;
-          await this.controller.writePattern(next);
-          return 'Redone';
-        }
-        return 'Nothing to redo';
-
-      // Pattern History (#41)
-      case 'list_history':
-        if (this.historyStack.length === 0) {
-          return 'No pattern history yet. Make some edits to build history.';
-        }
-
-        const limit = args?.limit || 10;
-        const recentHistory = this.historyStack.slice(-limit).reverse();
-
-        return {
-          count: this.historyStack.length,
-          showing: recentHistory.length,
-          entries: recentHistory.map(entry => ({
-            id: entry.id,
-            preview: entry.pattern.substring(0, 60) + (entry.pattern.length > 60 ? '...' : ''),
-            chars: entry.pattern.length,
-            action: entry.action,
-            timestamp: this.formatTimeAgo(entry.timestamp)
-          }))
-        };
-
-      case 'restore_history':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-
-        const entryToRestore = this.historyStack.find(e => e.id === args.id);
-        if (!entryToRestore) {
-          return `History entry #${args.id} not found. Use list_history to see available entries.`;
-        }
-
-        // Save current state before restoring
-        const currentBeforeRestore = await this.controller.getCurrentPattern();
-        this.undoStack.push(currentBeforeRestore);
-        if (this.undoStack.length > this.MAX_HISTORY) {
-          this.undoStack.shift();
-        }
-
-        await this.controller.writePattern(entryToRestore.pattern);
-        return `Restored pattern from history #${args.id} (${this.formatTimeAgo(entryToRestore.timestamp)})`;
-
-      case 'compare_patterns':
-        const entry1 = this.historyStack.find(e => e.id === args.id1);
-        if (!entry1) {
-          return `History entry #${args.id1} not found.`;
-        }
-
-        let pattern2: string;
-        let label2: string;
-
-        if (args.id2) {
-          const entry2 = this.historyStack.find(e => e.id === args.id2);
-          if (!entry2) {
-            return `History entry #${args.id2} not found.`;
-          }
-          pattern2 = entry2.pattern;
-          label2 = `#${args.id2}`;
-        } else {
-          pattern2 = await this.getCurrentPatternSafe();
-          label2 = 'current';
-        }
-
-        const diff = this.generateDiff(entry1.pattern, pattern2);
-        return {
-          pattern1: { id: args.id1, chars: entry1.pattern.length },
-          pattern2: { id: label2, chars: pattern2.length },
-          diff: diff,
-          summary: this.summarizeDiff(entry1.pattern, pattern2)
-        };
+      // undo, redo, list_history, restore_history, compare_patterns
+      //   — handled by historyModule above.
 
       // performance_report, memory_usage, screenshot, status, diagnostics,
       // show_errors — all handled by diagnosticsModule before this switch.
@@ -1908,89 +1766,8 @@ export class StrudelMCPServer {
     return tempoMap[style.toLowerCase()] || 120;
   }
 
-  /**
-   * Formats a timestamp as human-readable "time ago" string
-   * @param date - Date to format
-   * @returns Human-readable string like "2m ago" or "1h ago"
-   */
-  private formatTimeAgo(date: Date): string {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  }
-
-  /**
-   * Generates a simple line-by-line diff between two patterns
-   * @param pattern1 - First pattern
-   * @param pattern2 - Second pattern
-   * @returns Diff output showing additions and removals
-   */
-  private generateDiff(pattern1: string, pattern2: string): string[] {
-    const lines1 = pattern1.split('\n');
-    const lines2 = pattern2.split('\n');
-    const diff: string[] = [];
-
-    const maxLines = Math.max(lines1.length, lines2.length);
-
-    for (let i = 0; i < maxLines; i++) {
-      const line1 = lines1[i] || '';
-      const line2 = lines2[i] || '';
-
-      if (line1 === line2) {
-        diff.push(`  ${line1}`);
-      } else {
-        if (line1) diff.push(`- ${line1}`);
-        if (line2) diff.push(`+ ${line2}`);
-      }
-    }
-
-    return diff;
-  }
-
-  /**
-   * Summarizes differences between two patterns
-   * @param pattern1 - First pattern
-   * @param pattern2 - Second pattern
-   * @returns Summary of differences
-   */
-  private summarizeDiff(pattern1: string, pattern2: string): {
-    linesAdded: number;
-    linesRemoved: number;
-    linesChanged: number;
-    charsDiff: number;
-  } {
-    const lines1 = pattern1.split('\n');
-    const lines2 = pattern2.split('\n');
-
-    let linesAdded = 0;
-    let linesRemoved = 0;
-    let linesChanged = 0;
-
-    const maxLines = Math.max(lines1.length, lines2.length);
-
-    for (let i = 0; i < maxLines; i++) {
-      const line1 = lines1[i];
-      const line2 = lines2[i];
-
-      if (line1 === undefined && line2 !== undefined) {
-        linesAdded++;
-      } else if (line1 !== undefined && line2 === undefined) {
-        linesRemoved++;
-      } else if (line1 !== line2) {
-        linesChanged++;
-      }
-    }
-
-    return {
-      linesAdded,
-      linesRemoved,
-      linesChanged,
-      charsDiff: pattern2.length - pattern1.length
-    };
-  }
+  // formatTimeAgo, generateDiff, summarizeDiff moved to
+  // src/server/tools/history.ts along with the tools that used them.
 
   /**
    * Gets AI-powered creative feedback on the current pattern
