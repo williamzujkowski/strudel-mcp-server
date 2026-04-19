@@ -185,12 +185,12 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `play` | Start playing pattern |
-| `pause` | Pause playback |
-| `stop` | Stop playback |
 | `clear` | Clear the editor |
 | `set_tempo` | Set BPM |
 | `status` | Get current browser and playback status (quick state check) |
+| `play` | Start playing pattern |
+| `pause` | Pause playback |
+| `stop` | Stop playback |
 
 </details>
 

@@ -19,6 +19,7 @@ import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
 import { InputValidator } from '../utils/InputValidator.js';
 import { StrudelEngine } from '../services/StrudelEngine.js';
 import { diagnosticsModule } from './tools/diagnostics.js';
+import { playbackModule } from './tools/playback.js';
 import type { ToolContext } from './tools/types.js';
 
 const configPath = './config.json';
@@ -186,21 +187,8 @@ export class StrudelMCPServer {
           required: ['search', 'replace']
         }
       },
-      {
-        name: 'play',
-        description: 'Start playing pattern',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'pause',
-        description: 'Pause playback',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'stop',
-        description: 'Stop playback',
-        inputSchema: { type: 'object', properties: {} }
-      },
+      // play, pause, stop — extracted to src/server/tools/playback.ts (#104)
+      ...playbackModule.tools,
       {
         name: 'clear',
         description: 'Clear the editor',
@@ -948,13 +936,16 @@ export class StrudelMCPServer {
     // Delegate to extracted per-domain tool modules before the big switch.
     // Part of the #104 file split — each module owns its own definitions
     // and handlers. server.ts keeps the protocol + state-tracking shell.
+    const ctx: ToolContext = {
+      controller: this.controller,
+      perfMonitor: this.perfMonitor,
+      isInitialized: () => this.isInitialized,
+    };
     if (diagnosticsModule.toolNames.has(name)) {
-      const ctx: ToolContext = {
-        controller: this.controller,
-        perfMonitor: this.perfMonitor,
-        isInitialized: () => this.isInitialized,
-      };
       return await diagnosticsModule.execute(name, args, ctx);
+    }
+    if (playbackModule.toolNames.has(name)) {
+      return await playbackModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -1026,13 +1017,8 @@ export class StrudelMCPServer {
         const replaced = pattern.replace(args.search, safeReplacement);
         return await this.writePatternSafe(replaced);
       
-      case 'play':
-        return await this.controller.play();
-      
-      case 'pause':
-      case 'stop':
-        return await this.controller.stop();
-      
+      // play, pause, stop — handled by playbackModule above.
+
       case 'clear':
         return await this.writePatternSafe('');
       
