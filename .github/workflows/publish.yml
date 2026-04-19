@@ -15,10 +15,11 @@ on:
           - minor
           - major
 
-# Required for OIDC trusted publishing
+# Required for OIDC trusted publishing and build provenance attestation
 permissions:
   contents: write
   id-token: write
+  attestations: write
 
 jobs:
   publish:
@@ -80,3 +81,40 @@ jobs:
           # NPM_TOKEN is optional when using OIDC trusted publishing
           # Keep it as fallback for transition period
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Pack the tarball so we can attest + attach it to the GitHub release
+      - name: Pack tarball for attestation
+        id: pack
+        run: |
+          TARBALL=$(npm pack --silent)
+          echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
+          echo "Packed: ${TARBALL}"
+
+      # GitHub-native SLSA build provenance on the published tarball —
+      # independent of npm's publish provenance so consumers can verify
+      # via either GitHub or the npm registry.
+      - name: Generate build provenance attestation
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: ${{ steps.pack.outputs.tarball }}
+
+      # SBOM via npm's built-in generator (SPDX + CycloneDX formats).
+      # Consumers can audit the dependency tree without cloning.
+      - name: Generate SBOM (SPDX)
+        run: npm sbom --sbom-format=spdx > sbom.spdx.json
+
+      - name: Generate SBOM (CycloneDX)
+        run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
+
+      # Attach SBOMs and tarball to the GitHub release for release events.
+      # Manual workflow_dispatch runs skip this since there's no release to attach to.
+      - name: Attach artifacts to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            "${{ steps.pack.outputs.tarball }}" \
+            sbom.spdx.json \
+            sbom.cdx.json \
+            --clobber
