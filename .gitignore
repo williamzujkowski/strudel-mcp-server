@@ -84,3 +84,4 @@ play-*.js
 
 # Nexus agents config (local setup)
 nexus-agents.yaml
+benchmarks/results/

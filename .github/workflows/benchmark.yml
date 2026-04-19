@@ -1,0 +1,78 @@
+name: Latency benchmark
+
+on:
+  schedule:
+    # Nightly at 03:15 UTC — runs after dependabot (03:00) but before most other cron jobs
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Runs per operation'
+        required: false
+        default: '50'
+      gate:
+        description: 'Fail if p95 > 1.5× target'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run latency benchmark
+        id: bench
+        env:
+          RUNS: ${{ github.event.inputs.runs || '50' }}
+          GATE: ${{ github.event.inputs.gate || 'false' }}
+        run: |
+          mkdir -p benchmarks/results
+          ARGS="--runs=${RUNS}"
+          if [ "${GATE}" = "true" ]; then
+            ARGS="${ARGS} --gate"
+          fi
+          npx tsx src/__tests__/benchmarks/latency.benchmark.ts ${ARGS} \
+            --out=benchmarks/results/latest.json \
+            | tee benchmarks/results/latest.md
+
+      - name: Archive benchmark results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: benchmarks/results/
+          retention-days: 90
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "# Latency benchmark" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f benchmarks/results/latest.md ]; then
+            cat benchmarks/results/latest.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No benchmark output produced." >> "$GITHUB_STEP_SUMMARY"
+          fi

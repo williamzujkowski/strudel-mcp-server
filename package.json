@@ -29,6 +29,8 @@
     "prepublishOnly": "npm run build && npm run test:nocov -- --testPathIgnorePatterns=browser",
     "prepare": "npm run build",
     "validate": "echo '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":1}' | node dist/index.js",
+    "benchmark": "tsx src/__tests__/benchmarks/latency.benchmark.ts",
+    "benchmark:gate": "tsx src/__tests__/benchmarks/latency.benchmark.ts --gate",
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
