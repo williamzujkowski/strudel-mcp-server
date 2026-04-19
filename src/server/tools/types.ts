@@ -15,6 +15,8 @@ import type { MusicTheory } from '../../services/MusicTheory.js';
 import type { SessionManager } from '../../services/SessionManager.js';
 import type { MIDIExportService } from '../../services/MIDIExportService.js';
 import type { AudioCaptureService } from '../../services/AudioCaptureService.js';
+import type { GeminiService } from '../../services/GeminiService.js';
+import type { StrudelEngine } from '../../services/StrudelEngine.js';
 import type { Logger } from '../../utils/Logger.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
@@ -51,6 +53,8 @@ export interface ToolContext {
   generator: PatternGenerator;
   theory: MusicTheory;
   sessionManager: SessionManager;
+  geminiService: GeminiService;
+  strudelEngine: StrudelEngine;
   midiExportService: MIDIExportService;
   /**
    * Lazily returns the shared AudioCaptureService (the server owns its
