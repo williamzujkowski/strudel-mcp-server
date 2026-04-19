@@ -429,6 +429,27 @@ describe('AudioCaptureService', () => {
 
       expect(result).toHaveProperty('timestamp');
     });
+
+    it('should fall back to default start error message when error field is missing', async () => {
+      // Cover the `result.error || 'Failed to start capture'` fallback branch
+      const page = {
+        evaluate: jest.fn().mockResolvedValue({ success: false }),
+      } as unknown as Page;
+
+      await expect(service.startCapture(page)).rejects.toThrow('Failed to start capture');
+    });
+
+    it('should fall back to default stop error message when error field is missing', async () => {
+      // Cover the `result.error || 'Failed to stop capture'` fallback branch
+      const page = {
+        evaluate: jest.fn()
+          .mockResolvedValueOnce({ success: true })           // startCapture
+          .mockResolvedValueOnce({ success: false }),          // stopCapture (no error string)
+      } as unknown as Page;
+
+      await service.startCapture(page);
+      await expect(service.stopCapture(page)).rejects.toThrow('Failed to stop capture');
+    });
   });
 
   // ============================================================================

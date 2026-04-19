@@ -67,6 +67,7 @@ export class AudioCaptureService {
    * @throws {Error} When injection fails
    */
   async injectRecorder(page: Page): Promise<void> {
+    /* istanbul ignore next -- browser-injected IIFE, covered by integration tests */
     await page.evaluate(() => {
       (window as any).strudelAudioCapture = {
         mediaStreamDest: null as MediaStreamAudioDestinationNode | null,
@@ -233,7 +234,7 @@ export class AudioCaptureService {
    * @throws {Error} When capture fails to start
    */
   async startCapture(page: Page, config?: AudioCaptureConfig): Promise<void> {
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(/* istanbul ignore next */ () => {
       const capture = (window as any).strudelAudioCapture;
       if (!capture) {
         return { success: false, error: 'Audio capture not initialized. Call injectRecorder first.' };
@@ -258,7 +259,7 @@ export class AudioCaptureService {
    * @throws {Error} When capture fails or no data was recorded
    */
   async stopCapture(page: Page): Promise<AudioCaptureResult> {
-    const result = await page.evaluate(async () => {
+    const result = await page.evaluate(/* istanbul ignore next */ async () => {
       const capture = (window as any).strudelAudioCapture;
       if (!capture) {
         return { success: false, error: 'Audio capture not initialized.' };
@@ -335,7 +336,7 @@ export class AudioCaptureService {
    * @returns Connection status
    */
   async isConnected(page: Page): Promise<boolean> {
-    return await page.evaluate(() => {
+    return await page.evaluate(/* istanbul ignore next */ () => {
       const capture = (window as any).strudelAudioCapture;
       return capture?.isConnected ?? false;
     });
@@ -348,7 +349,7 @@ export class AudioCaptureService {
    * @param page - Playwright page instance
    */
   async clearChunks(page: Page): Promise<void> {
-    await page.evaluate(() => {
+    await page.evaluate(/* istanbul ignore next */ () => {
       const capture = (window as any).strudelAudioCapture;
       if (capture) {
         capture.chunks = [];
