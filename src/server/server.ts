@@ -18,6 +18,8 @@ import { Logger } from '../utils/Logger.js';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor.js';
 import { InputValidator } from '../utils/InputValidator.js';
 import { StrudelEngine } from '../services/StrudelEngine.js';
+import { diagnosticsModule } from './tools/diagnostics.js';
+import type { ToolContext } from './tools/types.js';
 
 const configPath = './config.json';
 const config = existsSync(configPath) 
@@ -589,49 +591,13 @@ export class StrudelMCPServer {
         }
       },
 
-      // Performance Monitoring (2)
-      {
-        name: 'performance_report',
-        description: 'Get performance metrics and bottlenecks',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'memory_usage',
-        description: 'Get current memory usage statistics',
-        inputSchema: { type: 'object', properties: {} }
-      },
+      // Performance, diagnostics, screenshots — extracted to src/server/tools/diagnostics.ts (#104)
+      ...diagnosticsModule.tools,
 
       // UX Tools - Browser Control (#37)
       {
         name: 'show_browser',
         description: 'Bring browser window to foreground for visual feedback',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'screenshot',
-        description: 'Take a screenshot of the current Strudel editor state',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            filename: { type: 'string', description: 'Optional filename for screenshot' }
-          }
-        }
-      },
-
-      // UX Tools - Status & Diagnostics (#39)
-      {
-        name: 'status',
-        description: 'Get current browser and playback status (quick state check)',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'diagnostics',
-        description: 'Get detailed browser diagnostics including cache, errors, and performance',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'show_errors',
-        description: 'Display captured console errors and warnings from Strudel',
         inputSchema: { type: 'object', properties: {} }
       },
 
@@ -977,6 +943,18 @@ export class StrudelMCPServer {
       } catch (e) {
         // Controller might not be initialized yet
       }
+    }
+
+    // Delegate to extracted per-domain tool modules before the big switch.
+    // Part of the #104 file split — each module owns its own definitions
+    // and handlers. server.ts keeps the protocol + state-tracking shell.
+    if (diagnosticsModule.toolNames.has(name)) {
+      const ctx: ToolContext = {
+        controller: this.controller,
+        perfMonitor: this.perfMonitor,
+        isInitialized: () => this.isInitialized,
+      };
+      return await diagnosticsModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -1644,15 +1622,9 @@ export class StrudelMCPServer {
           summary: this.summarizeDiff(entry1.pattern, pattern2)
         };
 
-      // Performance Monitoring
-      case 'performance_report':
-        const report = this.perfMonitor.getReport();
-        const bottlenecks = this.perfMonitor.getBottlenecks(5);
-        return `${report}\n\nTop 5 Bottlenecks:\n${JSON.stringify(bottlenecks, null, 2)}`;
-
-      case 'memory_usage':
-        const memory = this.perfMonitor.getMemoryUsage();
-        return memory ? JSON.stringify(memory, null, 2) : 'Memory usage not available';
+      // performance_report, memory_usage, screenshot, status, diagnostics,
+      // show_errors — all handled by diagnosticsModule before this switch.
+      // show_browser stays here until session.ts extraction lands.
 
       // UX Tools - Browser Control (#37)
       case 'show_browser':
@@ -1660,42 +1632,6 @@ export class StrudelMCPServer {
           return 'Browser not initialized. Run init first.';
         }
         return await this.controller.showBrowser();
-
-      case 'screenshot':
-        if (!this.isInitialized) {
-          return 'Browser not initialized. Run init first.';
-        }
-        return await this.controller.takeScreenshot(args?.filename);
-
-      // UX Tools - Status & Diagnostics (#39)
-      case 'status':
-        return this.controller.getStatus();
-
-      case 'diagnostics':
-        if (!this.isInitialized) {
-          return {
-            initialized: false,
-            message: 'Browser not initialized. Run init first for full diagnostics.'
-          };
-        }
-        return await this.controller.getDiagnostics();
-
-      case 'show_errors':
-        const errors = this.controller.getConsoleErrors();
-        const warnings = this.controller.getConsoleWarnings();
-
-        if (errors.length === 0 && warnings.length === 0) {
-          return 'No errors or warnings captured.';
-        }
-
-        let result = '';
-        if (errors.length > 0) {
-          result += `❌ Errors (${errors.length}):\n${errors.map(e => `  • ${e}`).join('\n')}\n`;
-        }
-        if (warnings.length > 0) {
-          result += `⚠️ Warnings (${warnings.length}):\n${warnings.map(w => `  • ${w}`).join('\n')}`;
-        }
-        return result.trim();
 
       // UX Tools - High-level Compose (#42, #73)
       case 'compose':
