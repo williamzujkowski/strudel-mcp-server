@@ -25,6 +25,7 @@ import { historyModule } from './tools/history.js';
 import { analysisModule } from './tools/analysis.js';
 import { editorModule } from './tools/editor.js';
 import { transformModule } from './tools/transform.js';
+import { generateModule } from './tools/generate.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -104,57 +105,10 @@ export class StrudelMCPServer {
       // transform + effect + shape + set_tempo — extracted to src/server/tools/transform.ts (#104)
       ...transformModule.tools,
 
-      {
-        name: 'generate_pattern',
-        description: 'Generate complete pattern from style with optional auto-play',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            style: { type: 'string', description: 'Music style (techno/house/dnb/ambient/etc)' },
-            key: { type: 'string', description: 'Musical key' },
-            bpm: { type: 'number', description: 'Tempo in BPM' },
-            auto_play: { type: 'boolean', description: 'Start playback immediately (default: false)' }
-          },
-          required: ['style']
-        }
-      },
-      {
-        name: 'generate_drums',
-        description: 'Generate drum pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            style: { type: 'string', description: 'Drum style' },
-            complexity: { type: 'number', description: 'Complexity (0-1)' }
-          },
-          required: ['style']
-        }
-      },
-      {
-        name: 'generate_bassline',
-        description: 'Generate bassline',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            key: { type: 'string', description: 'Musical key' },
-            style: { type: 'string', description: 'Bass style' }
-          },
-          required: ['key', 'style']
-        }
-      },
-      {
-        name: 'generate_melody',
-        description: 'Generate melody from scale',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            scale: { type: 'string', description: 'Scale name' },
-            root: { type: 'string', description: 'Root note' },
-            length: { type: 'number', description: 'Number of notes' }
-          },
-          required: ['scale', 'root']
-        }
-      },
+      // generate_pattern, generate_drums, generate_bassline, generate_melody,
+      // generate_scale, generate_chord_progression, generate_euclidean,
+      // generate_polyrhythm, generate_fill — extracted to src/server/tools/generate.ts (#104)
+      ...generateModule.tools,
 
       // Audio Analysis + runtime validation — extracted to src/server/tools/analysis.ts (#104)
       ...analysisModule.tools,
@@ -168,68 +122,8 @@ export class StrudelMCPServer {
       // — extracted to src/server/tools/history.ts (#104)
       ...historyModule.tools,
 
-      // Additional Music Theory Tools (5)
-      {
-        name: 'generate_scale',
-        description: 'Generate scale notes',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            root: { type: 'string', description: 'Root note' },
-            scale: { type: 'string', description: 'Scale type' }
-          },
-          required: ['root', 'scale']
-        }
-      },
-      {
-        name: 'generate_chord_progression',
-        description: 'Generate chord progression',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            key: { type: 'string', description: 'Key' },
-            style: { type: 'string', description: 'Style (pop/jazz/blues/etc)' }
-          },
-          required: ['key', 'style']
-        }
-      },
-      {
-        name: 'generate_euclidean',
-        description: 'Generate Euclidean rhythm',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            hits: { type: 'number', description: 'Number of hits' },
-            steps: { type: 'number', description: 'Total steps' },
-            sound: { type: 'string', description: 'Sound to use' }
-          },
-          required: ['hits', 'steps']
-        }
-      },
-      {
-        name: 'generate_polyrhythm',
-        description: 'Generate polyrhythm',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            sounds: { type: 'array', items: { type: 'string' }, description: 'Sounds to use' },
-            patterns: { type: 'array', items: { type: 'number' }, description: 'Pattern numbers' }
-          },
-          required: ['sounds', 'patterns']
-        }
-      },
-      {
-        name: 'generate_fill',
-        description: 'Generate drum fill',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            style: { type: 'string', description: 'Fill style' },
-            bars: { type: 'number', description: 'Number of bars' }
-          },
-          required: ['style']
-        }
-      },
+      // generate_scale, generate_chord_progression, generate_euclidean,
+      // generate_polyrhythm, generate_fill — handled by generateModule (above).
 
       // Performance, diagnostics, screenshots — extracted to src/server/tools/diagnostics.ts (#104)
       ...diagnosticsModule.tools,
@@ -565,6 +459,7 @@ export class StrudelMCPServer {
       perfMonitor: this.perfMonitor,
       store: this.store,
       generator: this.generator,
+      theory: this.theory,
       history: {
         undoStack: this.undoStack,
         redoStack: this.redoStack,
@@ -597,6 +492,9 @@ export class StrudelMCPServer {
     if (transformModule.toolNames.has(name)) {
       return await transformModule.execute(name, args, ctx);
     }
+    if (generateModule.toolNames.has(name)) {
+      return await generateModule.execute(name, args, ctx);
+    }
 
     switch (name) {
       // Core Control
@@ -618,118 +516,8 @@ export class StrudelMCPServer {
       //   — handled by editorModule above.
       // play, pause, stop — handled by playbackModule above.
 
-      // Pattern Generation - These can work without browser
-      case 'generate_pattern':
-        InputValidator.validateStringLength(args.style, 'style', 100, false);
-        if (args.key) {
-          InputValidator.validateRootNote(args.key);
-        }
-        if (args.bpm !== undefined) {
-          InputValidator.validateBPM(args.bpm);
-        }
-        const generated = this.generator.generateCompletePattern(
-          args.style,
-          args.key || 'C',
-          args.bpm || 120
-        );
-        await this.writePatternSafe(generated);
-
-        // Auto-play if requested - Issue #38
-        if (args.auto_play && this.isInitialized) {
-          await this.controller.play();
-          return `Generated ${args.style} pattern. Playing.`;
-        }
-
-        return `Generated ${args.style} pattern`;
-      
-      case 'generate_drums':
-        InputValidator.validateStringLength(args.style, 'style', 100, false);
-        if (args.complexity !== undefined) {
-          InputValidator.validateNormalizedValue(args.complexity, 'complexity');
-        }
-        const drums = this.generator.generateDrumPattern(args.style, args.complexity || 0.5);
-        const currentDrum = await this.getCurrentPatternSafe();
-        const newDrumPattern = currentDrum ? currentDrum + '\n' + drums : drums;
-        await this.writePatternSafe(newDrumPattern);
-        return `Generated ${args.style} drums`;
-      
-      case 'generate_bassline':
-        InputValidator.validateRootNote(args.key);
-        InputValidator.validateStringLength(args.style, 'style', 100, false);
-        const bass = this.generator.generateBassline(args.key, args.style);
-        const currentBass = await this.getCurrentPatternSafe();
-        const newBassPattern = currentBass ? currentBass + '\n' + bass : bass;
-        await this.writePatternSafe(newBassPattern);
-        return `Generated ${args.style} bassline in ${args.key}`;
-      
-      case 'generate_melody':
-        InputValidator.validateRootNote(args.root);
-        InputValidator.validateScaleName(args.scale);
-        if (args.length !== undefined) {
-          InputValidator.validatePositiveInteger(args.length, 'length');
-        }
-        const scale = this.theory.generateScale(args.root, args.scale);
-        const melody = this.generator.generateMelody(scale, args.length || 8);
-        const currentMelody = await this.getCurrentPatternSafe();
-        const newMelodyPattern = currentMelody ? currentMelody + '\n' + melody : melody;
-        await this.writePatternSafe(newMelodyPattern);
-        return `Generated melody in ${args.root} ${args.scale}`;
-      
-      // Music Theory - These don't require browser
-      case 'generate_scale':
-        InputValidator.validateRootNote(args.root);
-        InputValidator.validateScaleName(args.scale);
-        const scaleNotes = this.theory.generateScale(args.root, args.scale);
-        return `${args.root} ${args.scale} scale: ${scaleNotes.join(', ')}`;
-      
-      case 'generate_chord_progression':
-        InputValidator.validateRootNote(args.key);
-        InputValidator.validateChordStyle(args.style);
-        const progression = this.theory.generateChordProgression(args.key, args.style);
-        const chordPattern = this.generator.generateChords(progression);
-        const currentChords = await this.getCurrentPatternSafe();
-        const newChordPattern = currentChords ? currentChords + '\n' + chordPattern : chordPattern;
-        await this.writePatternSafe(newChordPattern);
-        return `Generated ${args.style} progression in ${args.key}: ${progression}`;
-      
-      case 'generate_euclidean':
-        InputValidator.validateEuclidean(args.hits, args.steps);
-        if (args.sound) {
-          InputValidator.validateStringLength(args.sound, 'sound', 100, false);
-        }
-        const euclidean = this.generator.generateEuclideanPattern(
-          args.hits,
-          args.steps,
-          args.sound || 'bd'
-        );
-        const currentEuc = await this.getCurrentPatternSafe();
-        const newEucPattern = currentEuc ? currentEuc + '\n' + euclidean : euclidean;
-        await this.writePatternSafe(newEucPattern);
-        return `Generated Euclidean rhythm (${args.hits}/${args.steps})`;
-      
-      case 'generate_polyrhythm':
-        args.sounds.forEach((sound: string) => {
-          InputValidator.validateStringLength(sound, 'sound', 100, false);
-        });
-        args.patterns.forEach((pattern: number) => {
-          InputValidator.validatePositiveInteger(pattern, 'pattern');
-        });
-        const poly = this.generator.generatePolyrhythm(args.sounds, args.patterns);
-        const currentPoly = await this.getCurrentPatternSafe();
-        const newPolyPattern = currentPoly ? currentPoly + '\n' + poly : poly;
-        await this.writePatternSafe(newPolyPattern);
-        return `Generated polyrhythm`;
-      
-      case 'generate_fill':
-        InputValidator.validateStringLength(args.style, 'style', 100, false);
-        if (args.bars !== undefined) {
-          InputValidator.validatePositiveInteger(args.bars, 'bars');
-        }
-        const fill = this.generator.generateFill(args.style, args.bars || 1);
-        const currentFill = await this.getCurrentPatternSafe();
-        const newFillPattern = currentFill ? currentFill + '\n' + fill : fill;
-        await this.writePatternSafe(newFillPattern);
-        return `Generated ${args.bars || 1} bar fill`;
+      // Pattern + music-theory generation — all handled by
+      // generateModule above. See src/server/tools/generate.ts.
       
       // Pattern manipulation + effects + tempo — all handled by
       // transformModule above. See src/server/tools/transform.ts.

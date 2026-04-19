@@ -1,0 +1,239 @@
+/**
+ * generate domain — pattern and music-theory generation (no browser needed).
+ *
+ * Owns (9 tools):
+ *   generate_pattern, generate_drums, generate_bassline, generate_melody,
+ *   generate_fill, generate_scale, generate_chord_progression,
+ *   generate_euclidean, generate_polyrhythm
+ *
+ * `compose` stays in server.ts for now — it orchestrates init + generate
+ * + play + optional AI feedback and pairs with ai.ts when that extraction
+ * happens. Per the #110 audit, compose eventually absorbs generate_pattern
+ * and the four generate_* drums/bass/melody/fill tools collapse into
+ * `generate_part(role)`, while scale+chord_prog become `music_theory`.
+ */
+
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { ToolContext, ToolModule } from './types.js';
+import { InputValidator } from '../../utils/InputValidator.js';
+
+export const tools: Tool[] = [
+  {
+    name: 'generate_pattern',
+    description: 'Generate complete pattern from style with optional auto-play',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        style: { type: 'string', description: 'Music style (techno/house/dnb/ambient/etc)' },
+        key: { type: 'string', description: 'Musical key' },
+        bpm: { type: 'number', description: 'Tempo in BPM' },
+        auto_play: { type: 'boolean', description: 'Start playback immediately (default: false)' },
+      },
+      required: ['style'],
+    },
+  },
+  {
+    name: 'generate_drums',
+    description: 'Generate drum pattern',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        style: { type: 'string', description: 'Drum style' },
+        complexity: { type: 'number', description: 'Complexity (0-1)' },
+      },
+      required: ['style'],
+    },
+  },
+  {
+    name: 'generate_bassline',
+    description: 'Generate bassline',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Musical key' },
+        style: { type: 'string', description: 'Bass style' },
+      },
+      required: ['key', 'style'],
+    },
+  },
+  {
+    name: 'generate_melody',
+    description: 'Generate melody from scale',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scale: { type: 'string', description: 'Scale name' },
+        root: { type: 'string', description: 'Root note' },
+        length: { type: 'number', description: 'Number of notes' },
+      },
+      required: ['scale', 'root'],
+    },
+  },
+  {
+    name: 'generate_scale',
+    description: 'Generate scale notes',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        root: { type: 'string', description: 'Root note' },
+        scale: { type: 'string', description: 'Scale type' },
+      },
+      required: ['root', 'scale'],
+    },
+  },
+  {
+    name: 'generate_chord_progression',
+    description: 'Generate chord progression',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Key' },
+        style: { type: 'string', description: 'Style (pop/jazz/blues/etc)' },
+      },
+      required: ['key', 'style'],
+    },
+  },
+  {
+    name: 'generate_euclidean',
+    description: 'Generate Euclidean rhythm',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        hits: { type: 'number', description: 'Number of hits' },
+        steps: { type: 'number', description: 'Total steps' },
+        sound: { type: 'string', description: 'Sound to use' },
+      },
+      required: ['hits', 'steps'],
+    },
+  },
+  {
+    name: 'generate_polyrhythm',
+    description: 'Generate polyrhythm',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sounds: { type: 'array', items: { type: 'string' }, description: 'Sounds to use' },
+        patterns: { type: 'array', items: { type: 'number' }, description: 'Pattern numbers' },
+      },
+      required: ['sounds', 'patterns'],
+    },
+  },
+  {
+    name: 'generate_fill',
+    description: 'Generate drum fill',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        style: { type: 'string', description: 'Fill style' },
+        bars: { type: 'number', description: 'Number of bars' },
+      },
+      required: ['style'],
+    },
+  },
+];
+
+export const toolNames = new Set(tools.map(t => t.name));
+
+async function appendOrSet(generated: string, ctx: ToolContext): Promise<void> {
+  const current = await ctx.getCurrentPatternSafe();
+  const combined = current ? current + '\n' + generated : generated;
+  await ctx.writePatternSafe(combined);
+}
+
+export async function execute(name: string, args: any, ctx: ToolContext): Promise<unknown> {
+  switch (name) {
+    case 'generate_pattern': {
+      InputValidator.validateStringLength(args.style, 'style', 100, false);
+      if (args.key) InputValidator.validateRootNote(args.key);
+      if (args.bpm !== undefined) InputValidator.validateBPM(args.bpm);
+
+      const generated = ctx.generator.generateCompletePattern(
+        args.style,
+        args.key || 'C',
+        args.bpm || 120,
+      );
+      await ctx.writePatternSafe(generated);
+
+      if (args.auto_play && ctx.isInitialized()) {
+        await ctx.controller.play();
+        return `Generated ${args.style} pattern. Playing.`;
+      }
+      return `Generated ${args.style} pattern`;
+    }
+
+    case 'generate_drums': {
+      InputValidator.validateStringLength(args.style, 'style', 100, false);
+      if (args.complexity !== undefined) InputValidator.validateNormalizedValue(args.complexity, 'complexity');
+      const drums = ctx.generator.generateDrumPattern(args.style, args.complexity || 0.5);
+      await appendOrSet(drums, ctx);
+      return `Generated ${args.style} drums`;
+    }
+
+    case 'generate_bassline': {
+      InputValidator.validateRootNote(args.key);
+      InputValidator.validateStringLength(args.style, 'style', 100, false);
+      const bass = ctx.generator.generateBassline(args.key, args.style);
+      await appendOrSet(bass, ctx);
+      return `Generated ${args.style} bassline in ${args.key}`;
+    }
+
+    case 'generate_melody': {
+      InputValidator.validateRootNote(args.root);
+      InputValidator.validateScaleName(args.scale);
+      if (args.length !== undefined) InputValidator.validatePositiveInteger(args.length, 'length');
+      const scale = ctx.theory.generateScale(args.root, args.scale);
+      const melody = ctx.generator.generateMelody(scale, args.length || 8);
+      await appendOrSet(melody, ctx);
+      return `Generated melody in ${args.root} ${args.scale}`;
+    }
+
+    case 'generate_scale': {
+      InputValidator.validateRootNote(args.root);
+      InputValidator.validateScaleName(args.scale);
+      const notes = ctx.theory.generateScale(args.root, args.scale);
+      return `${args.root} ${args.scale} scale: ${notes.join(', ')}`;
+    }
+
+    case 'generate_chord_progression': {
+      InputValidator.validateRootNote(args.key);
+      InputValidator.validateChordStyle(args.style);
+      const progression = ctx.theory.generateChordProgression(args.key, args.style);
+      const chordPattern = ctx.generator.generateChords(progression);
+      await appendOrSet(chordPattern, ctx);
+      return `Generated ${args.style} progression in ${args.key}: ${progression}`;
+    }
+
+    case 'generate_euclidean': {
+      InputValidator.validateEuclidean(args.hits, args.steps);
+      if (args.sound) InputValidator.validateStringLength(args.sound, 'sound', 100, false);
+      const euclidean = ctx.generator.generateEuclideanPattern(
+        args.hits,
+        args.steps,
+        args.sound || 'bd',
+      );
+      await appendOrSet(euclidean, ctx);
+      return `Generated Euclidean rhythm (${args.hits}/${args.steps})`;
+    }
+
+    case 'generate_polyrhythm': {
+      args.sounds.forEach((s: string) => InputValidator.validateStringLength(s, 'sound', 100, false));
+      args.patterns.forEach((p: number) => InputValidator.validatePositiveInteger(p, 'pattern'));
+      const poly = ctx.generator.generatePolyrhythm(args.sounds, args.patterns);
+      await appendOrSet(poly, ctx);
+      return 'Generated polyrhythm';
+    }
+
+    case 'generate_fill': {
+      InputValidator.validateStringLength(args.style, 'style', 100, false);
+      if (args.bars !== undefined) InputValidator.validatePositiveInteger(args.bars, 'bars');
+      const fill = ctx.generator.generateFill(args.style, args.bars || 1);
+      await appendOrSet(fill, ctx);
+      return `Generated ${args.bars || 1} bar fill`;
+    }
+
+    default:
+      throw new Error(`generate module does not handle tool: ${name}`);
+  }
+}
+
+export const generateModule: ToolModule = { tools, toolNames, execute };

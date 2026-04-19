@@ -219,13 +219,13 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
+| `compose` | Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed. |
 | `generate_pattern` | Generate complete pattern from style with optional auto-play |
 | `generate_drums` | Generate drum pattern |
 | `generate_bassline` | Generate bassline |
 | `generate_melody` | Generate melody from scale |
 | `generate_polyrhythm` | Generate polyrhythm |
 | `generate_fill` | Generate drum fill |
-| `compose` | Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed. |
 | `generate_variation` | Create pattern variations |
 
 </details>
