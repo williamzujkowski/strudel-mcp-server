@@ -12,6 +12,7 @@ import type { StrudelController } from '../../StrudelController.js';
 import type { PatternStore } from '../../PatternStore.js';
 import type { PatternGenerator } from '../../services/PatternGenerator.js';
 import type { MusicTheory } from '../../services/MusicTheory.js';
+import type { SessionManager } from '../../services/SessionManager.js';
 import type { Logger } from '../../utils/Logger.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
@@ -47,6 +48,7 @@ export interface ToolContext {
   store: PatternStore;
   generator: PatternGenerator;
   theory: MusicTheory;
+  sessionManager: SessionManager;
   history: HistoryState;
   logger: Logger;
   isInitialized(): boolean;

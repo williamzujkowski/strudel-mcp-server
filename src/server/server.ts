@@ -26,6 +26,7 @@ import { analysisModule } from './tools/analysis.js';
 import { editorModule } from './tools/editor.js';
 import { transformModule } from './tools/transform.js';
 import { generateModule } from './tools/generate.js';
+import { sessionModule } from './tools/session.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -221,45 +222,9 @@ export class StrudelMCPServer {
         }
       },
 
-      // Multi-Session Management Tools (#75)
-      {
-        name: 'create_session',
-        description: 'Create a new isolated Strudel browser session. Sessions share one browser but have isolated contexts.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: { type: 'string', description: 'Unique identifier for the session' }
-          },
-          required: ['session_id']
-        }
-      },
-      {
-        name: 'destroy_session',
-        description: 'Close and destroy a Strudel session, releasing its resources.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: { type: 'string', description: 'Session identifier to destroy' }
-          },
-          required: ['session_id']
-        }
-      },
-      {
-        name: 'list_sessions',
-        description: 'List all active Strudel sessions with their metadata.',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'switch_session',
-        description: 'Change the default session used by other tools.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            session_id: { type: 'string', description: 'Session identifier to set as default' }
-          },
-          required: ['session_id']
-        }
-      },
+      // create_session, destroy_session, list_sessions, switch_session —
+      // extracted to src/server/tools/session.ts (#104)
+      ...sessionModule.tools,
 
       // refine, set_energy — handled by transformModule (see above).
 
@@ -460,6 +425,7 @@ export class StrudelMCPServer {
       store: this.store,
       generator: this.generator,
       theory: this.theory,
+      sessionManager: this.sessionManager,
       history: {
         undoStack: this.undoStack,
         redoStack: this.redoStack,
@@ -494,6 +460,9 @@ export class StrudelMCPServer {
     }
     if (generateModule.toolNames.has(name)) {
       return await generateModule.execute(name, args, ctx);
+    }
+    if (sessionModule.toolNames.has(name)) {
+      return await sessionModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -710,75 +679,8 @@ export class StrudelMCPServer {
       case 'export_midi':
         return await this.exportMidi(args?.filename, args?.duration, args?.bpm, args?.format);
 
-      // Multi-Session Management Tools (#75)
-      case 'create_session':
-        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
-        try {
-          await this.sessionManager.createSession(args.session_id);
-          return {
-            success: true,
-            session_id: args.session_id,
-            message: `Session '${args.session_id}' created successfully`,
-            total_sessions: this.sessionManager.getSessionCount(),
-            max_sessions: this.sessionManager.getMaxSessions()
-          };
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          return {
-            success: false,
-            error: message
-          };
-        }
-
-      case 'destroy_session':
-        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
-        try {
-          await this.sessionManager.destroySession(args.session_id);
-          return {
-            success: true,
-            session_id: args.session_id,
-            message: `Session '${args.session_id}' destroyed`,
-            remaining_sessions: this.sessionManager.getSessionCount()
-          };
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          return {
-            success: false,
-            error: message
-          };
-        }
-
-      case 'list_sessions':
-        const sessionsInfo = this.sessionManager.getSessionsInfo();
-        return {
-          count: sessionsInfo.length,
-          max_sessions: this.sessionManager.getMaxSessions(),
-          default_session: this.sessionManager.getDefaultSessionId(),
-          sessions: sessionsInfo.map(s => ({
-            id: s.id,
-            created: s.created.toISOString(),
-            last_activity: s.lastActivity.toISOString(),
-            is_playing: s.isPlaying,
-            is_default: s.id === this.sessionManager.getDefaultSessionId()
-          }))
-        };
-
-      case 'switch_session':
-        InputValidator.validateStringLength(args.session_id, 'session_id', 100, false);
-        try {
-          this.sessionManager.setDefaultSession(args.session_id);
-          return {
-            success: true,
-            default_session: args.session_id,
-            message: `Default session switched to '${args.session_id}'`
-          };
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          return {
-            success: false,
-            error: message
-          };
-        }
+      // create_session, destroy_session, list_sessions, switch_session —
+      // handled by sessionModule above.
 
       // AI Collaborative Jamming (#82)
       case 'jam_with':
