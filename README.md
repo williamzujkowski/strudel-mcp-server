@@ -185,12 +185,12 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `set_tempo` | Set BPM |
 | `status` | Get current browser and playback status (quick state check) |
 | `clear` | Clear the editor |
 | `play` | Start playing pattern |
 | `pause` | Pause playback |
 | `stop` | Stop playback |
+| `set_tempo` | Set BPM |
 
 </details>
 
@@ -219,7 +219,6 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `generate_variation` | Create pattern variations |
 | `generate_pattern` | Generate complete pattern from style with optional auto-play |
 | `generate_drums` | Generate drum pattern |
 | `generate_bassline` | Generate bassline |
@@ -227,6 +226,7 @@ Then ask Claude:
 | `generate_polyrhythm` | Generate polyrhythm |
 | `generate_fill` | Generate drum fill |
 | `compose` | Generate, write, and play a complete pattern in one step. Auto-initializes browser if needed. |
+| `generate_variation` | Create pattern variations |
 
 </details>
 
@@ -234,10 +234,10 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `apply_scale` | Apply scale to notes |
 | `generate_scale` | Generate scale notes |
 | `generate_chord_progression` | Generate chord progression |
 | `generate_euclidean` | Generate Euclidean rhythm |
+| `apply_scale` | Apply scale to notes |
 
 </details>
 
@@ -261,10 +261,10 @@ Then ask Claude:
 
 | Tool | Description |
 |------|-------------|
-| `shift_mood` | Transform current pattern to match a different emotional mood by adjusting tempo, effects, and note choices. Moods: dark, euphoric, melancholic, aggressive, dreamy, peaceful, energetic. |
 | `get_pattern_feedback` | Get AI-powered creative feedback on the current pattern using Google Gemini. Analyzes pattern structure and optionally audio. |
-| `refine` | Incrementally refine the current pattern with simple directional commands. Supports: faster/slower (tempo), louder/quieter (gain), brighter/darker (filter cutoff), "more reverb"/drier (reverb). Auto-plays after applying refinement. |
 | `jam_with` | AI generates a complementary layer to jam with your pattern. Analyzes current pattern to detect tempo, key, and existing layers, then generates a matching layer that fits musically. |
+| `shift_mood` | Transform current pattern to match a different emotional mood by adjusting tempo, effects, and note choices. Moods: dark, euphoric, melancholic, aggressive, dreamy, peaceful, energetic. |
+| `refine` | Incrementally refine the current pattern with simple directional commands. Supports: faster/slower (tempo), louder/quieter (gain), brighter/darker (filter cutoff), "more reverb"/drier (reverb). Auto-plays after applying refinement. |
 
 </details>
 

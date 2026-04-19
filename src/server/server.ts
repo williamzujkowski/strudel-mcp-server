@@ -24,6 +24,7 @@ import { storageModule } from './tools/storage.js';
 import { historyModule } from './tools/history.js';
 import { analysisModule } from './tools/analysis.js';
 import { editorModule } from './tools/editor.js';
+import { transformModule } from './tools/transform.js';
 import type { ToolContext, HistoryEntry } from './tools/types.js';
 
 const configPath = './config.json';
@@ -32,49 +33,8 @@ const config = existsSync(configPath)
   : { headless: false };
 
 /** Energy level configuration for set_energy tool (#81) */
-interface EnergyConfig {
-  tempoAdjust: number;  // Percentage adjustment (-20 to +20)
-  roomAmount: number;   // Reverb amount (0-1)
-  densityAdjust: string; // fast(), slow(), or empty
-  description: string;
-}
-
-/** Energy level presets for pattern energy adjustments (#81) */
-const ENERGY_LEVELS: Record<number, EnergyConfig> = {
-  0: { tempoAdjust: -20, roomAmount: 0.5, densityAdjust: '.slow(4)', description: 'minimal/ambient' },
-  1: { tempoAdjust: -15, roomAmount: 0.4, densityAdjust: '.slow(3)', description: 'very sparse' },
-  2: { tempoAdjust: -10, roomAmount: 0.3, densityAdjust: '.slow(2)', description: 'sparse' },
-  3: { tempoAdjust: -5, roomAmount: 0.2, densityAdjust: '.slow(1.5)', description: 'light' },
-  4: { tempoAdjust: 0, roomAmount: 0.15, densityAdjust: '', description: 'relaxed' },
-  5: { tempoAdjust: 0, roomAmount: 0.1, densityAdjust: '', description: 'normal' },
-  6: { tempoAdjust: 5, roomAmount: 0.08, densityAdjust: '', description: 'moderate' },
-  7: { tempoAdjust: 10, roomAmount: 0.05, densityAdjust: '.fast(1.25)', description: 'driving' },
-  8: { tempoAdjust: 15, roomAmount: 0.03, densityAdjust: '.fast(1.5)', description: 'intense' },
-  9: { tempoAdjust: 18, roomAmount: 0.02, densityAdjust: '.fast(1.75)', description: 'very intense' },
-  10: { tempoAdjust: 20, roomAmount: 0.01, densityAdjust: '.fast(2)', description: 'maximum' }
-};
-
-/** Mood profile for emotional pattern transformations (#80) */
-interface MoodProfile {
-  preferMinor: boolean;
-  tempoMod: number;
-  cutoffMod: number;
-  roomMod: number;
-  gainMod: number;
-  noteShift: number;
-  delayMod?: number;
-}
-
-/** Mood profiles for emotional transformations (#80) */
-const MOOD_PROFILES: Record<string, MoodProfile> = {
-  dark: { preferMinor: true, tempoMod: -0.1, cutoffMod: -200, roomMod: 0.2, gainMod: -0.1, noteShift: -12 },
-  euphoric: { preferMinor: false, tempoMod: 0.1, cutoffMod: 400, roomMod: 0.1, gainMod: 0.1, noteShift: 12 },
-  melancholic: { preferMinor: true, tempoMod: -0.15, cutoffMod: -100, roomMod: 0.3, gainMod: -0.05, noteShift: 0 },
-  aggressive: { preferMinor: false, tempoMod: 0.15, cutoffMod: 600, roomMod: -0.1, gainMod: 0.15, noteShift: 0 },
-  dreamy: { preferMinor: false, tempoMod: -0.2, cutoffMod: -300, roomMod: 0.4, delayMod: 0.3, gainMod: -0.1, noteShift: 0 },
-  peaceful: { preferMinor: false, tempoMod: -0.25, cutoffMod: -200, roomMod: 0.25, gainMod: -0.15, noteShift: 0 },
-  energetic: { preferMinor: false, tempoMod: 0.2, cutoffMod: 300, roomMod: 0, gainMod: 0.1, noteShift: 0 }
-};
+// MOOD_PROFILES + ENERGY_LEVELS moved to src/server/tools/transform.ts
+// alongside the shift_mood / set_energy / refine handlers that use them.
 
 export class StrudelMCPServer {
   private server: Server;
@@ -141,65 +101,9 @@ export class StrudelMCPServer {
       // play, pause, stop — extracted to src/server/tools/playback.ts (#104)
       ...playbackModule.tools,
 
-      // Pattern Manipulation (10)
-      {
-        name: 'transpose',
-        description: 'Transpose notes by semitones',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            semitones: { type: 'number', description: 'Semitones to transpose' }
-          },
-          required: ['semitones']
-        }
-      },
-      {
-        name: 'reverse',
-        description: 'Reverse pattern',
-        inputSchema: { type: 'object', properties: {} }
-      },
-      {
-        name: 'stretch',
-        description: 'Time stretch pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            factor: { type: 'number', description: 'Stretch factor' }
-          },
-          required: ['factor']
-        }
-      },
-      {
-        name: 'quantize',
-        description: 'Quantize to grid',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            grid: { type: 'string', description: 'Grid size (e.g., "1/16")' }
-          },
-          required: ['grid']
-        }
-      },
-      {
-        name: 'humanize',
-        description: 'Add human timing variation',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            amount: { type: 'number', description: 'Humanization amount (0-1)' }
-          }
-        }
-      },
-      {
-        name: 'generate_variation',
-        description: 'Create pattern variations',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', description: 'Variation type (subtle/moderate/extreme/glitch/evolving)' }
-          }
-        }
-      },
+      // transform + effect + shape + set_tempo — extracted to src/server/tools/transform.ts (#104)
+      ...transformModule.tools,
+
       {
         name: 'generate_pattern',
         description: 'Generate complete pattern from style with optional auto-play',
@@ -255,92 +159,9 @@ export class StrudelMCPServer {
       // Audio Analysis + runtime validation — extracted to src/server/tools/analysis.ts (#104)
       ...analysisModule.tools,
 
-      // Effects & Processing (5)
-      {
-        name: 'add_effect',
-        description: 'Add effect to pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            effect: { type: 'string', description: 'Effect name' },
-            params: { type: 'string', description: 'Effect parameters' }
-          },
-          required: ['effect']
-        }
-      },
-      {
-        name: 'remove_effect',
-        description: 'Remove effect',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            effect: { type: 'string', description: 'Effect to remove' }
-          },
-          required: ['effect']
-        }
-      },
-      {
-        name: 'set_tempo',
-        description: 'Set BPM',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            bpm: { type: 'number', description: 'Tempo in BPM' }
-          },
-          required: ['bpm']
-        }
-      },
-      {
-        name: 'add_swing',
-        description: 'Add swing to pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            amount: { type: 'number', description: 'Swing amount (0-1)' }
-          },
-          required: ['amount']
-        }
-      },
-      {
-        name: 'apply_scale',
-        description: 'Apply scale to notes',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            scale: { type: 'string', description: 'Scale name' },
-            root: { type: 'string', description: 'Root note' }
-          },
-          required: ['scale', 'root']
-        }
-      },
+      // add_effect, remove_effect, set_tempo, add_swing, apply_scale,
+      // shift_mood — all handled by transformModule (see above).
 
-
-      // Mood Transformation Tool (#80)
-      {
-        name: 'shift_mood',
-        description: 'Transform current pattern to match a different emotional mood by adjusting tempo, effects, and note choices. Moods: dark, euphoric, melancholic, aggressive, dreamy, peaceful, energetic.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            target_mood: {
-              type: 'string',
-              enum: ['dark', 'euphoric', 'melancholic', 'aggressive', 'dreamy', 'peaceful', 'energetic'],
-              description: 'Target mood'
-            },
-            intensity: {
-              type: 'number',
-              minimum: 0,
-              maximum: 1,
-              description: 'How strongly to apply the mood transformation (0-1, default: 0.5)'
-            },
-            auto_play: {
-              type: 'boolean',
-              description: 'Start playback after transformation (default: true)'
-            }
-          },
-          required: ['target_mood']
-        }
-      },
       // save, load, list — extracted to src/server/tools/storage.ts (#104)
       ...storageModule.tools,
       // undo, redo, list_history, restore_history, compare_patterns
@@ -546,35 +367,7 @@ export class StrudelMCPServer {
         }
       },
 
-      // Pattern Refinement Tools (#78, #81)
-      {
-        name: 'refine',
-        description: 'Incrementally refine the current pattern with simple directional commands. Supports: faster/slower (tempo), louder/quieter (gain), brighter/darker (filter cutoff), "more reverb"/drier (reverb). Auto-plays after applying refinement.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            direction: {
-              type: 'string',
-              description: 'Refinement direction: faster, slower, louder, quieter, brighter, darker, "more reverb", or drier'
-            }
-          },
-          required: ['direction']
-        }
-      },
-      {
-        name: 'set_energy',
-        description: 'Adjust the overall energy level of the current pattern on a 0-10 scale. 0: minimal/ambient, 1-2: sparse, 3-4: light/relaxed, 5-6: normal/moderate, 7-8: driving/intense, 9-10: maximum. Auto-plays after applying energy level.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            level: {
-              type: 'number',
-              description: 'Energy level from 0 (minimal) to 10 (maximum)'
-            }
-          },
-          required: ['level']
-        }
-      },
+      // refine, set_energy — handled by transformModule (see above).
 
       // AI Collaborative Jamming (#82)
       {
@@ -771,6 +564,7 @@ export class StrudelMCPServer {
       controller: this.controller,
       perfMonitor: this.perfMonitor,
       store: this.store,
+      generator: this.generator,
       history: {
         undoStack: this.undoStack,
         redoStack: this.redoStack,
@@ -799,6 +593,9 @@ export class StrudelMCPServer {
     }
     if (editorModule.toolNames.has(name)) {
       return await editorModule.execute(name, args, ctx);
+    }
+    if (transformModule.toolNames.has(name)) {
+      return await transformModule.execute(name, args, ctx);
     }
 
     switch (name) {
@@ -934,100 +731,8 @@ export class StrudelMCPServer {
         await this.writePatternSafe(newFillPattern);
         return `Generated ${args.bars || 1} bar fill`;
       
-      // Pattern Manipulation - These require browser
-      case 'transpose':
-        // Semitones can be positive or negative, just validate it's a number
-        if (typeof args.semitones !== 'number' || !Number.isInteger(args.semitones)) {
-          throw new Error('Semitones must be an integer');
-        }
-        const toTranspose = await this.getCurrentPatternSafe();
-        const transposed = this.transposePattern(toTranspose, args.semitones);
-        await this.writePatternSafe(transposed);
-        return `Transposed ${args.semitones} semitones`;
-      
-      case 'reverse':
-        const toReverse = await this.getCurrentPatternSafe();
-        const reversed = toReverse + '.rev';
-        await this.writePatternSafe(reversed);
-        return 'Pattern reversed';
-      
-      case 'stretch':
-        InputValidator.validateGain(args.factor); // Positive number, use gain validator for simplicity
-        const toStretch = await this.getCurrentPatternSafe();
-        const stretched = toStretch + `.slow(${args.factor})`;
-        await this.writePatternSafe(stretched);
-        return `Stretched by factor of ${args.factor}`;
-      
-      case 'humanize':
-        if (args.amount !== undefined) {
-          InputValidator.validateNormalizedValue(args.amount, 'amount');
-        }
-        const toHumanize = await this.getCurrentPatternSafe();
-        const humanized = toHumanize + `.nudge(rand.range(-${args.amount || 0.01}, ${args.amount || 0.01}))`;
-        await this.writePatternSafe(humanized);
-        return 'Added human timing';
-
-      case 'quantize':
-        InputValidator.validateStringLength(args.grid, 'grid', 50, false);
-        const toQuantize = await this.getCurrentPatternSafe();
-        const quantized = toQuantize + `.struct("${args.grid}")`;
-        await this.writePatternSafe(quantized);
-        return `Quantized to ${args.grid} grid`;
-
-      case 'apply_scale':
-        InputValidator.validateStringLength(args.scale, 'scale', 50, false);
-        InputValidator.validateRootNote(args.root);
-        const toScale = await this.getCurrentPatternSafe();
-        const scaled = toScale + `.scale("${args.root}:${args.scale}")`;
-        await this.writePatternSafe(scaled);
-        return `Applied ${args.root} ${args.scale} scale`;
-
-      case 'remove_effect': {
-        InputValidator.validateStringLength(args.effect, 'effect', 100, false);
-        const currentForRemove = await this.getCurrentPatternSafe();
-        // Match `.effect(...)` with balanced or greedy args; greedy works for
-        // the simple flat chains this tool produces.
-        const effectRegex = new RegExp(`\\.${args.effect}\\([^)]*\\)`, 'g');
-        const stripped = currentForRemove.replace(effectRegex, '');
-        if (stripped === currentForRemove) {
-          return `No ${args.effect} effect found to remove`;
-        }
-        await this.writePatternSafe(stripped);
-        return `Removed ${args.effect} effect`;
-      }
-      
-      case 'generate_variation':
-        const toVary = await this.getCurrentPatternSafe();
-        const varied = this.generator.generateVariation(toVary, args.type || 'subtle');
-        await this.writePatternSafe(varied);
-        return `Added ${args.type || 'subtle'} variation`;
-      
-      // Effects - These require browser
-      case 'add_effect':
-        InputValidator.validateStringLength(args.effect, 'effect', 100, false);
-        if (args.params) {
-          InputValidator.validateStringLength(args.params, 'params', 1000, true);
-        }
-        const currentEffect = await this.getCurrentPatternSafe();
-        const withEffect = args.params
-          ? currentEffect + `.${args.effect}(${args.params})`
-          : currentEffect + `.${args.effect}()`;
-        await this.writePatternSafe(withEffect);
-        return `Added ${args.effect} effect`;
-      
-      case 'add_swing':
-        InputValidator.validateNormalizedValue(args.amount, 'amount');
-        const currentSwing = await this.getCurrentPatternSafe();
-        const withSwing = currentSwing + `.swing(${args.amount})`;
-        await this.writePatternSafe(withSwing);
-        return `Added swing: ${args.amount}`;
-      
-      case 'set_tempo':
-        InputValidator.validateBPM(args.bpm);
-        const currentTempo = await this.getCurrentPatternSafe();
-        const withTempo = `setcpm(${args.bpm})\n${currentTempo}`;
-        await this.writePatternSafe(withTempo);
-        return `Set tempo to ${args.bpm} BPM`;
+      // Pattern manipulation + effects + tempo — all handled by
+      // transformModule above. See src/server/tools/transform.ts.
       
       // analyze, analyze_spectrum, analyze_rhythm, detect_tempo, detect_key,
       // validate_pattern_runtime — handled by analysisModule above.
@@ -1106,91 +811,7 @@ export class StrudelMCPServer {
         }
 
 
-      // Mood Transformation (#80)
-      case 'shift_mood':
-        const mood = args.target_mood?.toLowerCase()?.trim();
-        const moodProfile = MOOD_PROFILES[mood];
-
-        if (!moodProfile) {
-          return {
-            success: false,
-            error: `Unknown mood: ${args.target_mood}. Valid moods: ${Object.keys(MOOD_PROFILES).join(', ')}.`
-          };
-        }
-
-        const moodPattern = await this.getCurrentPatternSafe();
-        if (!moodPattern || moodPattern.trim().length === 0) {
-          return {
-            success: false,
-            error: 'No pattern to transform. Write a pattern first.'
-          };
-        }
-
-        const moodIntensity = args.intensity ?? 0.5;
-        if (moodIntensity < 0 || moodIntensity > 1) {
-          return {
-            success: false,
-            error: 'Intensity must be between 0 and 1.'
-          };
-        }
-
-        const appliedEffects: string[] = [];
-        let transformedPattern = moodPattern;
-
-        // Apply tempo modification
-        if (moodProfile.tempoMod !== 0) {
-          const tempoAdjust = 1 + (moodProfile.tempoMod * moodIntensity);
-          if (tempoAdjust > 1) {
-            transformedPattern += `.fast(${tempoAdjust.toFixed(2)})`;
-            appliedEffects.push(`tempo +${Math.round(moodProfile.tempoMod * 100 * moodIntensity)}%`);
-          } else {
-            transformedPattern += `.slow(${(1 / tempoAdjust).toFixed(2)})`;
-            appliedEffects.push(`tempo ${Math.round(moodProfile.tempoMod * 100 * moodIntensity)}%`);
-          }
-        }
-
-        // Apply cutoff modification
-        if (moodProfile.cutoffMod !== 0) {
-          const baseCutoff = 1000;
-          const newCutoff = Math.max(200, baseCutoff + (moodProfile.cutoffMod * moodIntensity));
-          transformedPattern += `.lpf(${Math.round(newCutoff)})`;
-          appliedEffects.push(`cutoff ${moodProfile.cutoffMod > 0 ? '+' : ''}${Math.round(moodProfile.cutoffMod * moodIntensity)}Hz`);
-        }
-
-        // Apply reverb modification
-        if (moodProfile.roomMod !== 0) {
-          const roomAmount = Math.max(0, Math.min(1, moodProfile.roomMod * moodIntensity));
-          transformedPattern += `.room(${roomAmount.toFixed(2)})`;
-          appliedEffects.push(`reverb ${roomAmount.toFixed(2)}`);
-        }
-
-        // Apply delay if specified
-        if (moodProfile.delayMod && moodProfile.delayMod > 0) {
-          const delayAmount = moodProfile.delayMod * moodIntensity;
-          transformedPattern += `.delay(${delayAmount.toFixed(2)})`;
-          appliedEffects.push(`delay ${delayAmount.toFixed(2)}`);
-        }
-
-        // Apply gain modification
-        if (moodProfile.gainMod !== 0) {
-          const gainAdjust = 1 + (moodProfile.gainMod * moodIntensity);
-          transformedPattern += `.gain(${gainAdjust.toFixed(2)})`;
-          appliedEffects.push(`gain ${moodProfile.gainMod > 0 ? '+' : ''}${Math.round(moodProfile.gainMod * 100 * moodIntensity)}%`);
-        }
-
-        await this.writePatternSafe(transformedPattern);
-
-        const shouldPlayMood = args.auto_play !== false;
-        if (shouldPlayMood && this.isInitialized) {
-          await this.controller.play();
-        }
-
-        return {
-          success: true,
-          target_mood: mood,
-          intensity: moodIntensity,
-          applied_effects: appliedEffects
-        };
+      // shift_mood — handled by transformModule above.
 
       // Session Management
       // save, load, list — handled by storageModule above.
@@ -1375,154 +996,15 @@ export class StrudelMCPServer {
       case 'jam_with':
         return await this.jamWith(args.layer, args.style_hint, args.auto_play);
 
-      // Pattern Refinement Tools (#78, #81)
-      case 'refine':
-        return await this.refinePattern(args.direction);
-
-      case 'set_energy':
-        return await this.setEnergyLevel(args.level);
+      // refine, set_energy — handled by transformModule above.
 
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
   }
 
-  /**
-   * Incrementally refines the current pattern with simple directional commands.
-   * Supports: faster/slower, louder/quieter, brighter/darker, more reverb/drier.
-   * @param direction - Refinement direction
-   * @returns Result object with success status and applied refinement
-   */
-  private async refinePattern(direction: string): Promise<{
-    success: boolean;
-    direction?: string;
-    applied?: string;
-    error?: string;
-  }> {
-    const currentPattern = await this.getCurrentPatternSafe();
-    if (!currentPattern || currentPattern.trim().length === 0) {
-      return {
-        success: false,
-        error: 'No pattern to refine. Write a pattern first.'
-      };
-    }
-
-    let modification = '';
-    const dir = direction.toLowerCase().trim();
-
-    switch (dir) {
-      case 'faster':
-        modification = '.fast(1.1)';
-        break;
-      case 'slower':
-        modification = '.slow(1.1)';
-        break;
-      case 'louder':
-        modification = '.gain(1.1)';
-        break;
-      case 'quieter':
-        modification = '.gain(0.9)';
-        break;
-      case 'brighter':
-        modification = '.lpf(2000)';
-        break;
-      case 'darker':
-        modification = '.lpf(800)';
-        break;
-      case 'more reverb':
-        modification = '.room(0.5)';
-        break;
-      case 'drier':
-        modification = '.room(0.1)';
-        break;
-      default:
-        return {
-          success: false,
-          error: `Unknown refinement direction: ${direction}. Supported: faster, slower, louder, quieter, brighter, darker, "more reverb", drier.`
-        };
-    }
-
-    const newPattern = currentPattern + modification;
-    await this.writePatternSafe(newPattern);
-
-    if (this.isInitialized) {
-      await this.controller.play();
-    }
-
-    return {
-      success: true,
-      direction: dir,
-      applied: modification
-    };
-  }
-
-  /**
-   * Adjusts the overall energy level of the current pattern.
-   * @param level - Energy level from 0 (minimal) to 10 (maximum)
-   * @returns Result object with success status
-   */
-  private async setEnergyLevel(level: number): Promise<{
-    success: boolean;
-    level?: number;
-    description?: string;
-    error?: string;
-  }> {
-    if (level < 0 || level > 10 || !Number.isInteger(level)) {
-      return {
-        success: false,
-        error: 'Energy level must be an integer from 0 to 10.'
-      };
-    }
-
-    const currentPattern = await this.getCurrentPatternSafe();
-    if (!currentPattern || currentPattern.trim().length === 0) {
-      return {
-        success: false,
-        error: 'No pattern to adjust. Write a pattern first.'
-      };
-    }
-
-    const config = ENERGY_LEVELS[level];
-    let newPattern = currentPattern;
-
-    // Apply density adjustment if specified
-    if (config.densityAdjust) {
-      newPattern += config.densityAdjust;
-    }
-
-    // Apply room/reverb
-    newPattern += `.room(${config.roomAmount})`;
-
-    await this.writePatternSafe(newPattern);
-
-    if (this.isInitialized) {
-      await this.controller.play();
-    }
-
-    return {
-      success: true,
-      level,
-      description: config.description
-    };
-  }
-
-  private transposePattern(pattern: string, semitones: number): string {
-    // Simple transpose implementation - would need more sophisticated parsing
-    return pattern.replace(/([a-g][#b]?)(\d)/gi, (match, note, octave) => {
-      const noteMap: Record<string, number> = {
-        'c': 0, 'c#': 1, 'd': 2, 'd#': 3, 'e': 4, 'f': 5,
-        'f#': 6, 'g': 7, 'g#': 8, 'a': 9, 'a#': 10, 'b': 11
-      };
-
-      const currentNote = note.toLowerCase();
-      const noteValue = noteMap[currentNote] || 0;
-      const newNoteValue = (noteValue + semitones + 12) % 12;
-      const noteNames = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
-      const newOctave = parseInt(octave) + Math.floor((noteValue + semitones) / 12);
-
-      return noteNames[newNoteValue] + newOctave;
-    });
-  }
+  // refinePattern, setEnergyLevel, transposePattern moved to
+  // src/server/tools/transform.ts alongside the tools that used them.
 
   /**
    * Gets the default tempo for a given music style

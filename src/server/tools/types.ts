@@ -10,6 +10,7 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { StrudelController } from '../../StrudelController.js';
 import type { PatternStore } from '../../PatternStore.js';
+import type { PatternGenerator } from '../../services/PatternGenerator.js';
 import type { Logger } from '../../utils/Logger.js';
 import type { PerformanceMonitor } from '../../utils/PerformanceMonitor.js';
 
@@ -43,6 +44,7 @@ export interface ToolContext {
   controller: StrudelController;
   perfMonitor: PerformanceMonitor;
   store: PatternStore;
+  generator: PatternGenerator;
   history: HistoryState;
   logger: Logger;
   isInitialized(): boolean;
