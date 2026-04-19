@@ -34,10 +34,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@strudel/core": "^1.2.6",
-    "@strudel/mini": "^1.2.6",
-    "@strudel/tonal": "^1.2.6",
-    "@strudel/transpiler": "^1.2.6",
+    "@strudel/core": "1.2.5",
+    "@strudel/mini": "1.2.5",
+    "@strudel/tonal": "1.2.5",
+    "@strudel/transpiler": "1.2.5",
     "@tonejs/midi": "^2.0.28",
     "google-auth-library": "^10.5.0",
     "playwright": "^1.52.0"
