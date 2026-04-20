@@ -14,7 +14,7 @@
 [![npm version](https://img.shields.io/npm/v/@williamzujkowski/live-coding-music-mcp.svg)](https://www.npmjs.com/package/@williamzujkowski/live-coding-music-mcp)
 [![Nerq Trust](https://nerq.ai/badge/live-coding-music-mcp)](https://nerq.ai/kya/live-coding-music-mcp)
 [![Tools](https://img.shields.io/badge/tools-66-green.svg)]()
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 A Model Context Protocol (MCP) server that drives [Strudel.cc](https://strudel.cc/) from Claude for AI-assisted live-coding music, pattern generation, and algorithmic composition.
 
@@ -1719,7 +1719,11 @@ We review PRs promptly and welcome contributors of all skill levels. See [DEVELO
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file
+**AGPL-3.0-or-later** — see [LICENSE](LICENSE) for the full text.
+
+This project depends on `@strudel/core`, `@strudel/mini`, `@strudel/tonal`, and `@strudel/transpiler`, which are AGPL-3.0 licensed by the upstream [Strudel project](https://codeberg.org/uzu/strudel). Since we `import` from those packages and redistribute the combined work via npm, this project must be distributed under the same copyleft terms. If you fork or redistribute, you must keep the AGPL license and provide source access to any network-accessible users (AGPL §13).
+
+Earlier versions of this package (including `@williamzujkowski/strudel-mcp-server` prior to deprecation) shipped with an MIT declaration — that was incorrect given the AGPL dependencies. v2.0.0 of `@williamzujkowski/live-coding-music-mcp` corrects the license to AGPL-3.0-or-later. v1.0.0 of this package is deprecated; install v2.0.0 or later.
 
 ## 🙏 Acknowledgments
 

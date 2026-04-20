@@ -2,6 +2,29 @@
 
 All notable changes to this MCP server will be documented in this file.
 
+## [2.0.0] — relicense to AGPL-3.0-or-later
+
+**License changed: MIT → AGPL-3.0-or-later.** Filed and resolved as #125.
+
+### Why
+
+This project imports `@strudel/core`, `@strudel/mini`, `@strudel/tonal`, and `@strudel/transpiler`, all AGPL-3.0 licensed by the upstream [Strudel project](https://codeberg.org/uzu/strudel). Publishing a combined work under MIT was incorrect — AGPL's §5 copyleft clause propagates to anything that combines with AGPL code (ESM `import` on npm-redistributed packages qualifies as "combining" in the same sense that linking does for GPL). The earlier MIT declaration was a mistake; v2.0.0 fixes it.
+
+### What this means for you
+
+- If you `import` from this package in a private tool: no change. AGPL only triggers on distribution / network service.
+- If you fork, extend, or redistribute: your derivative must also be AGPL-3.0-or-later.
+- If you serve it over a network so others can interact with it (AGPL §13): you must provide source to those users.
+
+### Breaking
+
+- `license` field in `package.json`: `MIT` → `AGPL-3.0-or-later`. Some tooling (Snyk, dependency dashboards, corporate policy scanners) will flag this as a license change — expected.
+- No code changes, no API changes, no schema changes. Drop-in for every `1.x` user who can accept the license.
+
+### Deprecation
+
+`@williamzujkowski/live-coding-music-mcp@1.0.0` is deprecated on npm with a pointer to `2.0.0`. Install `^2.0.0` to get the corrected license.
+
 ## [1.0.0] — rename
 
 **Project renamed:** `@williamzujkowski/strudel-mcp-server` → `@williamzujkowski/live-coding-music-mcp`.
