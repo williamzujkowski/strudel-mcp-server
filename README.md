@@ -1,26 +1,28 @@
-# Strudel MCP Server
+# live-coding-music-mcp
 
-> 🎵 Open source MCP server for AI-powered music generation with Strudel.cc
+> 🎵 MCP server for AI-assisted live-coding music via [strudel.cc](https://strudel.cc/)
+>
+> **Unofficial fan project.** Not affiliated with, or endorsed by, the [Strudel project](https://codeberg.org/uzu/strudel). This adapter exists to make live-coding music accessible to beginners who want to try pattern-based music without learning the whole ecosystem first.
 >
 > **Status:** Beta | 77% test coverage | Published to npm | Actively developed
 
-<a href="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@williamzujkowski/strudel-mcp-server/badge" alt="Strudel Server MCP server" />
+<a href="https://glama.ai/mcp/servers/@williamzujkowski/live-coding-music-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@williamzujkowski/live-coding-music-mcp/badge" alt="live-coding-music-mcp server" />
 </a>
 
-[![CI](https://github.com/williamzujkowski/strudel-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/strudel-mcp-server/actions)
-[![npm version](https://img.shields.io/npm/v/@williamzujkowski/strudel-mcp-server.svg)](https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server)
-[![Nerq Trust](https://nerq.ai/badge/strudel-mcp-server)](https://nerq.ai/kya/strudel-mcp-server)
+[![CI](https://github.com/williamzujkowski/live-coding-music-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/williamzujkowski/live-coding-music-mcp/actions)
+[![npm version](https://img.shields.io/npm/v/@williamzujkowski/live-coding-music-mcp.svg)](https://www.npmjs.com/package/@williamzujkowski/live-coding-music-mcp)
+[![Nerq Trust](https://nerq.ai/badge/live-coding-music-mcp)](https://nerq.ai/kya/live-coding-music-mcp)
 [![Tools](https://img.shields.io/badge/tools-66-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Model Context Protocol (MCP) server that enables Claude to control [Strudel.cc](https://strudel.cc/) for AI-assisted music generation, live coding, and algorithmic composition.
+A Model Context Protocol (MCP) server that drives [Strudel.cc](https://strudel.cc/) from Claude for AI-assisted live-coding music, pattern generation, and algorithmic composition.
 
-**Current State: Beta.** The core workflow (init → generate → write → play → analyze) works reliably with real audio output and has 1470 passing tests covering 77% of statements. CI is hardened with OpenSSF Scorecard, SHA-pinned actions, CODEOWNERS, and Dependabot. Known coverage gaps exist (notably `AudioCaptureService` at 33% and `AudioAnalyzer` branch coverage at 48%) — see [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for the full list.
+**Current State: Beta.** The core workflow (init → generate → write → play → analyze) works reliably with real audio output and has 1470 passing tests covering 77% of statements. CI is hardened with OpenSSF Scorecard, SHA-pinned actions, CODEOWNERS, and Dependabot. Known coverage gaps exist (notably `AudioCaptureService` at 33% and `AudioAnalyzer` branch coverage at 48%) — see [open issues](https://github.com/williamzujkowski/live-coding-music-mcp/issues) for the full list.
 
 **What "Beta" means here:**
 - Tool schemas are stable within minor versions; breaking changes require a major bump
-- Single-browser-session limitation (multi-session tracked in [#108](https://github.com/williamzujkowski/strudel-mcp-server/issues/108))
+- Single-browser-session limitation (multi-session tracked in [#108](https://github.com/williamzujkowski/live-coding-music-mcp/issues/108))
 - Upstream `@strudel/*` dependencies pinned to known-good versions; Dependabot bumps gated on CI
 - Expect hands-on iteration for non-standard patterns — report rough edges, they get fixed
 
@@ -77,6 +79,42 @@ Explore 17 curated example patterns across 10 genres in [`patterns/examples/`](p
 
 Each example includes pattern code, BPM, key, and description. See [`patterns/examples/README.md`](patterns/examples/README.md) for details.
 
+## Migrating from `@williamzujkowski/strudel-mcp-server`
+
+This project was renamed from `@williamzujkowski/strudel-mcp-server` to `@williamzujkowski/live-coding-music-mcp` to make the unofficial fan-project status unambiguous (see [#97](https://github.com/williamzujkowski/live-coding-music-mcp/issues/97)). The old package is deprecated on npm.
+
+**If you were using the old package:**
+
+```bash
+# Remove old
+npm uninstall -g @williamzujkowski/strudel-mcp-server
+
+# Install new
+npm install -g @williamzujkowski/live-coding-music-mcp
+```
+
+**Update your MCP client config.** The `bin` name changed from `strudel-mcp` to `live-coding-music-mcp`:
+
+```jsonc
+// BEFORE
+{
+  "mcpServers": {
+    "strudel": { "command": "strudel-mcp" }
+  }
+}
+
+// AFTER
+{
+  "mcpServers": {
+    "live-coding-music": { "command": "live-coding-music-mcp" }
+  }
+}
+```
+
+The MCP server's internal identity string also changed from `strudel-mcp-enhanced` to `live-coding-music-mcp`. If you have a client that keys on that string (logs, allowlists, permission policies), update it accordingly.
+
+All tool names and schemas are unchanged.
+
 ## Installation
 
 ### Prerequisites
@@ -92,7 +130,7 @@ Each example includes pattern code, BPM, key, and description. See [`patterns/ex
 
 ### From npm
 ```bash
-npm install -g @williamzujkowski/strudel-mcp-server
+npm install -g @williamzujkowski/live-coding-music-mcp
 
 # Install browser (required once)
 npx playwright install chromium
@@ -101,8 +139,8 @@ npx playwright install chromium
 ### From Source
 ```bash
 # Clone repository
-git clone https://github.com/williamzujkowski/strudel-mcp-server.git
-cd strudel-mcp-server
+git clone https://github.com/williamzujkowski/live-coding-music-mcp.git
+cd live-coding-music-mcp
 
 # Install dependencies
 npm install
@@ -139,10 +177,10 @@ compose with style: "dnb", key: "Am", bpm: 174, auto_play: true
 ### 1. Add to Claude
 ```bash
 # If installed globally
-claude mcp add strudel strudel-mcp
+claude mcp add strudel live-coding-music-mcp
 
 # If built from source
-claude mcp add strudel node /path/to/strudel-mcp-server/dist/index.js
+claude mcp add strudel node /path/to/live-coding-music-mcp/dist/index.js
 ```
 
 ### 2. Start Using
@@ -728,7 +766,7 @@ Persistent pattern storage:
 ### Directory Structure
 
 ```
-strudel-mcp-server/
+live-coding-music-mcp/
 ├── src/
 │   ├── server/
 │   │   └── server.ts                    # MCP server
@@ -843,10 +881,10 @@ stack(
 
 ```bash
 # Build image
-docker build -t strudel-mcp .
+docker build -t live-coding-music-mcp .
 
 # Run container
-docker run -it --rm strudel-mcp
+docker run -it --rm live-coding-music-mcp
 
 # Or use docker-compose
 docker-compose up
@@ -858,8 +896,8 @@ docker-compose up
 
 ```bash
 # Clone the repository
-git clone https://github.com/williamzujkowski/strudel-mcp-server.git
-cd strudel-mcp-server
+git clone https://github.com/williamzujkowski/live-coding-music-mcp.git
+cd live-coding-music-mcp
 
 # Install dependencies
 npm install
@@ -1144,7 +1182,7 @@ Claude: Performance Report:
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/strudel-mcp-server.git
+   git clone https://github.com/YOUR_USERNAME/live-coding-music-mcp.git
    ```
 
 2. **Create a feature branch**
@@ -1216,16 +1254,16 @@ gh release create vX.Y.Z --generate-notes
 
 ```bash
 # Build development image
-docker build -t strudel-mcp:dev .
+docker build -t live-coding-music-mcp:dev .
 
 # Run with volume mount for hot reload
 docker run -it --rm \
   -v $(pwd)/src:/app/src \
   -v $(pwd)/patterns:/app/patterns \
-  strudel-mcp:dev
+  live-coding-music-mcp:dev
 
 # Run tests in container
-docker run -it --rm strudel-mcp:dev npm test
+docker run -it --rm live-coding-music-mcp:dev npm test
 ```
 
 ### Environment Variables
@@ -1448,7 +1486,7 @@ All patterns are validated before execution:
 
 ### Reporting Security Issues
 
-Found a vulnerability? Please [open a security issue](https://github.com/williamzujkowski/strudel-mcp-server/security/advisories/new) or email the maintainer directly. Do not disclose publicly until patched.
+Found a vulnerability? Please [open a security issue](https://github.com/williamzujkowski/live-coding-music-mcp/security/advisories/new) or email the maintainer directly. Do not disclose publicly until patched.
 
 ## 🐛 Troubleshooting
 
@@ -1643,7 +1681,7 @@ Ready to play.
 
 If you encounter issues not covered here:
 
-1. **Check existing issues**: [GitHub Issues](https://github.com/williamzujkowski/strudel-mcp-server/issues)
+1. **Check existing issues**: [GitHub Issues](https://github.com/williamzujkowski/live-coding-music-mcp/issues)
 2. **Run integration tests**: `npm run test:integration`
 3. **Enable debug mode**: `DEBUG=* npm start`
 4. **Consult Strudel docs**: [Strudel.cc documentation](https://strudel.cc/learn)
@@ -1654,11 +1692,11 @@ If you encounter issues not covered here:
 **We need your help!** This project is actively developed and welcomes contributions of all kinds:
 
 ### Ways to Contribute
-- **Report Bugs**: Found an issue? [Open a bug report](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
-- **Suggest Features**: Have ideas? [Create a feature request](https://github.com/williamzujkowski/strudel-mcp-server/issues/new)
+- **Report Bugs**: Found an issue? [Open a bug report](https://github.com/williamzujkowski/live-coding-music-mcp/issues/new)
+- **Suggest Features**: Have ideas? [Create a feature request](https://github.com/williamzujkowski/live-coding-music-mcp/issues/new)
 - **Improve Docs**: Fix typos, add examples, clarify confusing sections
 - **Write Tests**: Help us improve test coverage
-- **Fix Issues**: Check [open issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) for bugs to fix
+- **Fix Issues**: Check [open issues](https://github.com/williamzujkowski/live-coding-music-mcp/issues) for bugs to fix
 - **Add Features**: Implement new tools or improve existing ones
 
 ### Quick Start for Contributors
@@ -1673,7 +1711,7 @@ If you encounter issues not covered here:
 **First time contributor?** Look for issues labeled `good-first-issue` or `help-wanted`.
 
 ### Feedback Welcome
-- Questions? Open a [Discussion](https://github.com/williamzujkowski/strudel-mcp-server/discussions)
+- Questions? Open a [Discussion](https://github.com/williamzujkowski/live-coding-music-mcp/discussions)
 - Found something confusing? Tell us!
 - Have a use case we haven't considered? Share it!
 
@@ -1692,6 +1730,6 @@ MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-**v2.4.0** - Open Source | Experimental | [Report Issues](https://github.com/williamzujkowski/strudel-mcp-server/issues) | [Contribute](https://github.com/williamzujkowski/strudel-mcp-server/pulls)
+**v2.4.0** - Open Source | Experimental | [Report Issues](https://github.com/williamzujkowski/live-coding-music-mcp/issues) | [Contribute](https://github.com/williamzujkowski/live-coding-music-mcp/pulls)
 
 *This project is under active development. Core features work, but expect bugs and breaking changes. Not recommended for production use.*

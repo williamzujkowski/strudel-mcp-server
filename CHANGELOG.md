@@ -1,8 +1,39 @@
 # Changelog
 
-All notable changes to the Strudel MCP Server will be documented in this file.
+All notable changes to this MCP server will be documented in this file.
 
-## [Unreleased]
+## [1.0.0] — rename
+
+**Project renamed:** `@williamzujkowski/strudel-mcp-server` → `@williamzujkowski/live-coding-music-mcp`.
+
+The old package name borrowed the upstream project's brand ("strudel"). The upstream maintainer asked that third-party adapters not include "strudel" in their package name (see issue #97) so it's clear which project is the canonical one. Renamed to `live-coding-music-mcp` — descriptive of what the tool does without claiming a brand.
+
+The README, keywords, and description still reference `strudel.cc` accurately — this adapter drives the Strudel REPL. Only the package / repo name changed.
+
+### Breaking changes
+
+- npm package `@williamzujkowski/strudel-mcp-server` is **deprecated**. Install `@williamzujkowski/live-coding-music-mcp` instead.
+- GitHub repo renamed from `strudel-mcp-server` to `live-coding-music-mcp`. Old URLs redirect automatically.
+- `bin` name changed from `strudel-mcp` to `live-coding-music-mcp`. Update your MCP client config.
+- Internal MCP server identifier changed from `strudel-mcp-enhanced` to `live-coding-music-mcp`.
+- Docker image/container names changed to match. Rebuild images.
+- Version bumped to `1.0.0` to mark the rename as a clean break.
+
+### Migration
+
+```bash
+# Uninstall old
+npm uninstall -g @williamzujkowski/strudel-mcp-server
+
+# Install new
+npm install -g @williamzujkowski/live-coding-music-mcp
+
+# Update MCP client config
+# OLD:  "command": "strudel-mcp"
+# NEW:  "command": "live-coding-music-mcp"
+```
+
+## [Unreleased — pre-rename, now 2.4.1 on old package name]
 
 > 66 tools registered
 > Since v2.4.1

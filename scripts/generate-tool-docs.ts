@@ -37,7 +37,7 @@ function extractToolsFromFile(path: string): Tool[] {
   for (const match of content.matchAll(regex)) {
     const name = match[1] ?? '';
     const desc = match[2] ?? '';
-    if (name !== '' && name !== 'strudel-mcp-enhanced') {
+    if (name !== '' && name !== 'live-coding-music-mcp') {
       tools.push({ name, description: desc });
     }
   }

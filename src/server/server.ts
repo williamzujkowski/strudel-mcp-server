@@ -67,7 +67,7 @@ export class StrudelMCPServer {
   constructor() {
     this.server = new Server(
       {
-        name: 'strudel-mcp-enhanced',
+        name: 'live-coding-music-mcp',
         version: '2.0.1',
       },
       {

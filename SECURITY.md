@@ -12,7 +12,7 @@ If you discover a security vulnerability, please report it responsibly:
 
 1. **Do NOT open a public issue.** Security vulnerabilities should not be disclosed publicly until a fix is available.
 
-2. **Use GitHub Security Advisories:** Navigate to the [Security tab](https://github.com/williamzujkowski/strudel-mcp-server/security/advisories/new) and create a new private security advisory.
+2. **Use GitHub Security Advisories:** Navigate to the [Security tab](https://github.com/williamzujkowski/live-coding-music-mcp/security/advisories/new) and create a new private security advisory.
 
 3. **Alternatively, email:** Contact the maintainer directly through their GitHub profile.
 
@@ -32,7 +32,7 @@ If you discover a security vulnerability, please report it responsibly:
 ## Scope
 
 This security policy covers:
-- The `@williamzujkowski/strudel-mcp-server` npm package
+- The `@williamzujkowski/live-coding-music-mcp` npm package
 - The MCP server implementation
 - Any browser automation components
 
@@ -50,7 +50,7 @@ The npm registry verifies each release came from this repo's CI via OIDC-trusted
 
 ```bash
 # Install a specific version
-npm install @williamzujkowski/strudel-mcp-server@<version>
+npm install @williamzujkowski/live-coding-music-mcp@<version>
 
 # Verify signatures and attestations on the installed package
 npm audit signatures
@@ -64,11 +64,11 @@ Every release attaches a SLSA build provenance attestation to the published tarb
 
 ```bash
 # Download the tarball from the GitHub release page
-gh release download <tag> --repo williamzujkowski/strudel-mcp-server \
+gh release download <tag> --repo williamzujkowski/live-coding-music-mcp \
   --pattern "*.tgz"
 
 # Verify the attestation
-gh attestation verify williamzujkowski-strudel-mcp-server-<version>.tgz \
+gh attestation verify williamzujkowski-live-coding-music-mcp-<version>.tgz \
   --owner williamzujkowski
 ```
 
@@ -79,7 +79,7 @@ A valid attestation proves the tarball was built in this repository's GitHub Act
 Two SBOMs are attached to each release — SPDX (industry standard) and CycloneDX (common tooling). Use whichever your supply-chain tooling prefers:
 
 ```bash
-gh release download <tag> --repo williamzujkowski/strudel-mcp-server \
+gh release download <tag> --repo williamzujkowski/live-coding-music-mcp \
   --pattern "sbom.*.json"
 
 # Scan with e.g. Grype

@@ -1,4 +1,6 @@
-# Strudel MCP Server - Development Guide for LLMs
+# live-coding-music-mcp — Development Guide for LLMs
+
+> Unofficial fan project. Drives [strudel.cc](https://strudel.cc/) (the canonical Strudel REPL — see [codeberg.org/uzu/strudel](https://codeberg.org/uzu/strudel)) via MCP. Not affiliated with the upstream Strudel project.
 
 ## Tone and Style Guidelines
 

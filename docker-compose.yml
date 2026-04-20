@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  strudel-mcp:
+  live-coding-music-mcp:
     build: .
-    container_name: strudel-mcp-server
+    container_name: live-coding-music-mcp
     environment:
       - NODE_ENV=production
       - DEBUG=false
@@ -12,12 +12,12 @@ services:
       - ./config.json:/app/config.json:ro
     stdin_open: true
     tty: true
-    
-  strudel-mcp-dev:
-    build: 
+
+  live-coding-music-mcp-dev:
+    build:
       context: .
       target: builder
-    container_name: strudel-mcp-dev
+    container_name: live-coding-music-mcp-dev
     environment:
       - NODE_ENV=development
       - DEBUG=true

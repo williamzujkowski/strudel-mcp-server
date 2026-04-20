@@ -70,7 +70,7 @@ function getToolCount(): number {
     const matches = content.matchAll(/name:\s*'([^']+)'/g);
     let count = 0;
     for (const m of matches) {
-      if (m[1] !== 'strudel-mcp-enhanced') count++;
+      if (m[1] !== 'live-coding-music-mcp') count++;
     }
     return count;
   } catch {

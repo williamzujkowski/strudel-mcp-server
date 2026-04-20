@@ -1,6 +1,6 @@
 # npm Publishing Guide
 
-This document explains how to publish the `@williamzujkowski/strudel-mcp-server` package to npm.
+This document explains how to publish the `@williamzujkowski/live-coding-music-mcp` package to npm.
 
 ## Table of Contents
 
@@ -68,13 +68,13 @@ npm login
 
 ### Step 1: Configure Trusted Publisher on npmjs.com
 
-1. Go to https://www.npmjs.com/package/@williamzujkowski/strudel-mcp-server/access
+1. Go to https://www.npmjs.com/package/@williamzujkowski/live-coding-music-mcp/access
 2. Scroll to "Trusted Publishers" section
 3. Click "Add Trusted Publisher"
 4. Configure:
    - **Provider**: GitHub Actions
    - **Owner**: `williamzujkowski`
-   - **Repository**: `strudel-mcp-server`
+   - **Repository**: `live-coding-music-mcp`
    - **Workflow filename**: `publish.yml`
    - **Environment** (optional): `npm-publish`
 
@@ -93,7 +93,7 @@ For additional protection, create a deployment environment:
 If you want a fallback for OIDC issues:
 
 1. Create granular token on npmjs.com:
-   - Read-write access to `@williamzujkowski/strudel-mcp-server`
+   - Read-write access to `@williamzujkowski/live-coding-music-mcp`
    - Enable "Bypass 2FA for automation"
    - Set expiration (max 90 days)
 2. Add to GitHub Secrets as `NPM_TOKEN`:
@@ -166,13 +166,13 @@ After publishing, verify the package:
 
 ```bash
 # Check npm registry
-npm view @williamzujkowski/strudel-mcp-server
+npm view @williamzujkowski/live-coding-music-mcp
 
 # Verify provenance
 npm audit signatures
 
 # Check latest version
-npm show @williamzujkowski/strudel-mcp-server version
+npm show @williamzujkowski/live-coding-music-mcp version
 ```
 
 ## Troubleshooting

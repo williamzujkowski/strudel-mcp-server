@@ -1,11 +1,11 @@
 {
-  "name": "@williamzujkowski/strudel-mcp-server",
-  "version": "2.4.1",
-  "description": "Advanced MCP server for AI-powered music generation with Strudel.cc",
+  "name": "@williamzujkowski/live-coding-music-mcp",
+  "version": "1.0.0",
+  "description": "MCP server (unofficial, fan project) for AI-assisted live-coding music via strudel.cc. Lets Claude drive pattern generation, audio analysis, and MIDI export through the Strudel browser REPL.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "strudel-mcp": "dist/index.js"
+    "live-coding-music-mcp": "dist/index.js"
   },
   "files": [
     "dist/",
@@ -24,7 +24,7 @@
     "test:browser": "HEADLESS=true jest --testPathPattern=browser",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "docker:build": "docker build -t strudel-mcp .",
+    "docker:build": "docker build -t live-coding-music-mcp .",
     "docker:run": "docker-compose up",
     "prepublishOnly": "npm run build && npm run test:nocov -- --testPathIgnorePatterns=browser",
     "prepare": "npm run build",
@@ -58,7 +58,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/williamzujkowski/strudel-mcp-server.git"
+    "url": "git+https://github.com/williamzujkowski/live-coding-music-mcp.git"
   },
   "keywords": [
     "mcp",
@@ -76,9 +76,9 @@
   "author": "William Zujkowski <william.zujkowski@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/williamzujkowski/strudel-mcp-server/issues"
+    "url": "https://github.com/williamzujkowski/live-coding-music-mcp/issues"
   },
-  "homepage": "https://github.com/williamzujkowski/strudel-mcp-server#readme",
+  "homepage": "https://github.com/williamzujkowski/live-coding-music-mcp#readme",
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
