@@ -93,8 +93,24 @@ export class AudioAnalyzer {
    */
   private _fluxHistory: number[] = [];
   private readonly FLUX_WINDOW = 32;
-  /** Deviations above the median that count as an onset. */
-  private readonly ONSET_SENSITIVITY = 2.5;
+  /**
+   * Multiplier applied to the RAW median absolute deviation, not to sigma
+   * (#414 item 1).
+   *
+   * The distinction matters because the two are not the same unit. For
+   * Gaussian noise MAD is about 0.6745 sigma, so this 2.5 is roughly
+   * **1.69 sigma**, not two and a half. The previous name and doc comment
+   * ("deviations above the median") read as sigmas and were wrong by a
+   * factor of 1.4826.
+   *
+   * The VALUE is not known to be wrong. It was arrived at empirically in
+   * #350 and the resulting onset behaviour was measured against real
+   * playback in #366, so it is tuned for this signal whatever unit it is
+   * expressed in. Do not "correct" it to 2.5 sigma (i.e. 3.71 MAD) on the
+   * strength of the arithmetic alone — that is a real sensitivity change
+   * and needs re-measuring against the #366 corpus first.
+   */
+  private readonly ONSET_MAD_MULTIPLIER = 2.5;
   /** Flux below this is silence, whatever the local statistics say. */
   private readonly FLUX_NOISE_FLOOR = 0.004;
   private readonly MAX_HISTORY_LENGTH = 100;
@@ -724,7 +740,7 @@ export class AudioAnalyzer {
     // A perfectly steady signal has mad 0; require a real rise over the
     // median rather than dividing by zero.
     const threshold = mad > 0
-      ? median + this.ONSET_SENSITIVITY * mad
+      ? median + this.ONSET_MAD_MULTIPLIER * mad
       : median * 1.5 + this.FLUX_NOISE_FLOOR;
 
     return flux > threshold;
